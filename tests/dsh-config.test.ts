@@ -112,3 +112,31 @@ test('readConfigBundle falls back to an empty bundle for unknown conversations',
   assert.deepEqual(restored.mcpServers, [])
   assert.equal(restored.instructions, '')
 })
+
+test('saveConfigBundle bootstraps a conversation that has no messages yet', async () => {
+  const conversations = new Map<string, { metadata: Record<string, unknown> }>()
+  const store = {
+    async getConversation() {
+      const row = conversations.get('conv-new')
+      if (!row) throw Object.assign(new Error('Conversation not found'), { code: 'MemoryNotFoundError' })
+      return row
+    },
+    async appendMessage({ conversationId }: { conversationId: string }) {
+      if (!conversations.has(conversationId)) conversations.set(conversationId, { metadata: {} })
+    },
+    async updateConversation({
+      conversationId,
+      metadata,
+    }: {
+      conversationId: string
+      metadata: Record<string, unknown>
+    }) {
+      const row = conversations.get(conversationId)
+      if (!row) throw Object.assign(new Error('Conversation not found'), { code: 'MemoryNotFoundError' })
+      row.metadata = { ...row.metadata, ...metadata }
+      return row
+    },
+  }
+  await saveConfigBundle({ store }, 'conv-new', normalizeConfigBundle({ instructions: '规则' }))
+  assert.equal(conversations.get('conv-new')?.metadata.dshConfigBundle ? 'ok' : '', 'ok')
+})

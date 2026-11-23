@@ -212,6 +212,25 @@ export async function readConfigBundle(context: any, conversationId: string): Pr
   }
 }
 
+/** 会话还没有任何消息时，metadata 写不进去；先补一条引导消息把会话建出来。 */
+async function ensureConversation(store: any, conversationId: string): Promise<void> {
+  const payload = {
+    conversationId,
+    role: 'system' as const,
+    content: 'dsh-settings',
+    metadata: { kind: 'dsh-settings-bootstrap' },
+  }
+  try {
+    await store.appendMessage(payload)
+  } catch (firstError) {
+    try {
+      await store.appendMessage(conversationId, payload)
+    } catch {
+      throw firstError
+    }
+  }
+}
+
 /** 写入会话配置（只改一个 metadata 键，不动 settings.yaml 快照）。 */
 export async function saveConfigBundle(context: any, conversationId: string, bundle: DshConfigBundle): Promise<void> {
   const store = context?.store
@@ -219,11 +238,14 @@ export async function saveConfigBundle(context: any, conversationId: string, bun
   const metadata = { [DSH_CONFIG_METADATA_KEY]: bundle }
   try {
     await store.updateConversation({ conversationId, metadata })
-  } catch (firstError) {
+  } catch {
     try {
       await store.updateConversation(conversationId, { metadata })
+      return
     } catch {
-      throw firstError
+      // 会话还不存在，补一条引导消息后重试。
     }
+    await ensureConversation(store, conversationId)
+    await store.updateConversation({ conversationId, metadata })
   }
 }

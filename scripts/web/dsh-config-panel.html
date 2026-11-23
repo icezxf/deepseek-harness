@@ -28,6 +28,12 @@
 #dsh-makers-config-panel .dsh-cfg-add{border:1px dashed #cfd4dc;border-radius:9px;background:#fff;color:#3b5cff;font-size:12.5px;font-weight:500;height:34px;padding:0 12px;cursor:pointer}
 #dsh-makers-config-panel .dsh-cfg-add:hover{background:#f5f7ff;border-color:#9db1ff}
 #dsh-makers-config-panel .dsh-cfg-empty{margin:0 0 8px;color:#9aa3af;font-size:12.5px}
+#dsh-makers-config-panel .dsh-cfg-source{display:flex;align-items:center;gap:7px;margin:10px 0 0;padding:7px 10px;border-radius:8px;background:#f2f5ff;color:#3449b8;font-size:12px;line-height:1.5}
+#dsh-makers-config-panel .dsh-cfg-source[data-tone=session]{background:#fff8e8;color:#8a5a00}
+#dsh-makers-config-panel .dsh-cfg-source[hidden]{display:none}
+#dsh-makers-config-panel .dsh-cfg-reset{border:1px solid #d6dae1;background:#fff;color:#57606a}
+#dsh-makers-config-panel .dsh-cfg-reset:hover{background:#f6f7f9;color:#17181c}
+#dsh-makers-config-panel .dsh-cfg-reset[hidden]{display:none}
 #dsh-makers-config-panel footer{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;border-top:1px solid #eef0f3;background:#fafbfc}
 #dsh-makers-config-panel #dsh-cfg-status{flex:1 1 auto;min-width:0;color:#6b7280;font-size:12.5px;line-height:1.5;overflow-wrap:anywhere}
 #dsh-makers-config-panel #dsh-cfg-status[data-tone=error]{color:#b42318}
@@ -42,7 +48,9 @@
   #dsh-makers-config-panel .dsh-cfg-card{width:100%;height:100%;max-height:none;border-radius:0}
   #dsh-makers-config-panel header{padding:16px 16px 12px}
   #dsh-makers-config-panel .dsh-cfg-body{padding:12px 16px 4px}
-  #dsh-makers-config-panel footer{padding:12px 16px}
+  #dsh-makers-config-panel footer{flex-direction:column;align-items:stretch;gap:8px;padding:12px 16px}
+  #dsh-makers-config-panel #dsh-cfg-status:empty{display:none}
+  #dsh-makers-config-panel .dsh-cfg-actions{justify-content:flex-end}
 }
 </style>
 <script>
@@ -52,7 +60,8 @@
     + '<div class="dsh-cfg-overlay" data-cfg-close="1"></div>'
     + '<div class="dsh-cfg-card" role="dialog" aria-modal="true" aria-labelledby="dsh-cfg-title">'
     + '<header><h2 id="dsh-cfg-title">运行配置</h2>'
-    + '<p class="dsh-cfg-sub">保存在当前会话（conversation metadata），刷新与冷启动后依然生效。</p>'
+    + '<p class="dsh-cfg-sub">默认继承部署级配置；在下面改动并保存后，这个会话就独立了。</p>'
+    + '<p class="dsh-cfg-source" id="dsh-cfg-source" hidden></p>'
     + '<button type="button" class="dsh-cfg-x" data-cfg-close="1" aria-label="关闭">×</button></header>'
     + '<div class="dsh-cfg-body">'
     + '<section><h3>全局规则<small>写入 AGENTS.md，每次会话开始注入</small></h3>'
@@ -66,6 +75,7 @@
     + '</div>'
     + '<footer><span id="dsh-cfg-status"></span>'
     + '<div class="dsh-cfg-actions">'
+    + '<button type="button" class="dsh-cfg-reset" id="dsh-cfg-reset" hidden>恢复全局</button>'
     + '<button type="button" class="dsh-cfg-cancel" data-cfg-close="1">取消</button>'
     + '<button type="button" class="dsh-cfg-save" id="dsh-cfg-save">保存并重启会话</button>'
     + '</div></footer></div></div>';
@@ -84,6 +94,25 @@
     refs.status.textContent = text || '';
     if (tone) refs.status.dataset.tone = tone;
     else delete refs.status.dataset.tone;
+  };
+
+  const renderSource = (source, hasGlobalBaseline) => {
+    if (!refs) return;
+    let text = '';
+    let tone = '';
+    if (source === 'session') {
+      text = '本会话已单独保存配置，不再跟随部署级更新。';
+      tone = 'session';
+    } else if (source === 'global') {
+      text = '正在继承部署级配置（环境变量 DSH_CONFIG_JSON），改动并保存后本会话将独立。';
+    } else if (hasGlobalBaseline) {
+      text = '部署级配置存在但为空，可直接在此添加。';
+    }
+    refs.source.textContent = text;
+    refs.source.hidden = !text;
+    if (tone) refs.source.dataset.tone = tone;
+    else delete refs.source.dataset.tone;
+    refs.reset.hidden = !(source === 'session' && hasGlobalBaseline);
   };
 
   const serverRow = (server, index) => `
@@ -164,6 +193,7 @@
       };
       refs.instructions.value = bundle.instructions;
       render();
+      renderSource(data.source || 'empty', Boolean(data.hasGlobalBaseline));
       setStatus('');
     } catch (error) {
       setStatus(error && error.message ? error.message : '读取失败', 'error');
@@ -198,6 +228,30 @@
     }
   };
 
+  const reset = async () => {
+    if (busy) return;
+    busy = true;
+    refs.save.disabled = true;
+    refs.reset.disabled = true;
+    setStatus('正在恢复全局配置…');
+    try {
+      const response = await fetch('/api/dshConfig', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'reset' }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || '恢复失败');
+      setStatus('已恢复，正在重启会话…', 'ok');
+      setTimeout(() => location.reload(), 1200);
+    } catch (error) {
+      setStatus(error && error.message ? error.message : '恢复失败', 'error');
+      busy = false;
+      refs.save.disabled = false;
+      refs.reset.disabled = false;
+    }
+  };
+
   const close = () => {
     if (!panel) return;
     panel.hidden = true;
@@ -216,7 +270,9 @@
       skills: panel.querySelector('#dsh-cfg-skills'),
       instructions: panel.querySelector('#dsh-cfg-instructions'),
       status: panel.querySelector('#dsh-cfg-status'),
+      source: panel.querySelector('#dsh-cfg-source'),
       save: panel.querySelector('#dsh-cfg-save'),
+      reset: panel.querySelector('#dsh-cfg-reset'),
     };
     panel.addEventListener('click', (event) => {
       if (event.target.closest('[data-cfg-close]')) {
@@ -250,6 +306,7 @@
       if (event.key === 'Escape') close();
     });
     refs.save.addEventListener('click', save);
+    refs.reset.addEventListener('click', reset);
   };
 
   const open = () => {

@@ -6,7 +6,9 @@
  */
 import {
   normalizeConfigBundle,
-  readConfigBundle,
+  readGlobalConfigBundle,
+  readResolvedConfig,
+  resetConfigToGlobal,
   saveConfigBundle,
 } from '../_dsh-config.ts'
 import { stopDshWebSidecar } from '../_dsh-web-sidecar.ts'
@@ -27,8 +29,35 @@ export async function onRequest(context: any): Promise<Response> {
   const action = body && typeof body === 'object' && typeof body.action === 'string' ? body.action : ''
 
   if (action === 'read') {
-    const bundle = await readConfigBundle(context, conversationId)
-    return json({ ok: true, bundle })
+    const resolved = await readResolvedConfig(context, conversationId)
+    const baseline = readGlobalConfigBundle(context)
+    return json({
+      ok: true,
+      bundle: resolved.bundle,
+      source: resolved.source,
+      hasGlobalBaseline: Boolean(
+        baseline.instructions || baseline.mcpServers.length || baseline.skills.length,
+      ),
+    })
+  }
+
+  if (action === 'reset') {
+    try {
+      await resetConfigToGlobal(context, conversationId)
+    } catch (error) {
+      return json({
+        ok: false,
+        error: `恢复全局配置失败：${error instanceof Error ? error.message : String(error)}`,
+      }, 500)
+    }
+    let restarted = false
+    try {
+      restarted = await stopDshWebSidecar(conversationId)
+    } catch (error) {
+      console.warn('[dsh-web] config restart failed:', error)
+    }
+    const resolved = await readResolvedConfig(context, conversationId)
+    return json({ ok: true, bundle: resolved.bundle, source: resolved.source, restarted })
   }
 
   if (action === 'write') {
@@ -52,7 +81,7 @@ export async function onRequest(context: any): Promise<Response> {
     } catch (error) {
       console.warn('[dsh-web] config restart failed:', error)
     }
-    return json({ ok: true, bundle, restarted })
+    return json({ ok: true, bundle, source: 'session', restarted })
   }
 
   return json({ ok: false, error: '未知操作' }, 400)

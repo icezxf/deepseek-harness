@@ -11,6 +11,10 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export const DSH_CONFIG_METADATA_KEY = 'dshConfigBundle'
+/** 会话是否接管了全局基线：'session' 表示用会话自己的配置，'global' 表示继承环境变量。 */
+export const DSH_CONFIG_MODE_METADATA_KEY = 'dshConfigMode'
+/** 部署级默认配置：一次设好，所有新会话自动继承，相当于 CF 那边写在 wrangler 里的常量。 */
+export const DSH_CONFIG_ENV_KEY = 'DSH_CONFIG_JSON'
 
 const MAX_INSTRUCTIONS_BYTES = 16 * 1024
 const MAX_SKILL_BYTES = 32 * 1024
@@ -199,16 +203,89 @@ async function getConversationRow(context: any, conversationId: string): Promise
   }
 }
 
-/** 读取会话里保存的配置；缺失或不合法时回退为空配置，保证一定可启动。 */
-export async function readConfigBundle(context: any, conversationId: string): Promise<DshConfigBundle> {
+export type DshConfigSource = 'session' | 'global' | 'empty'
+
+/** 解析部署级基线（环境变量 DSH_CONFIG_JSON）；没配或写错都当作空基线，不影响启动。 */
+export function readGlobalConfigBundle(context: any): DshConfigBundle {
+  const raw = context?.env?.[DSH_CONFIG_ENV_KEY]
+  if (typeof raw !== 'string' || !raw.trim()) return emptyConfigBundle()
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(raw)
+  } catch (error) {
+    console.warn('[dsh-web] DSH_CONFIG_JSON is not valid JSON:', error)
+    return emptyConfigBundle()
+  }
+  try {
+    return normalizeConfigBundle(parsed)
+  } catch (error) {
+    console.warn('[dsh-web] DSH_CONFIG_JSON rejected:', error)
+    return emptyConfigBundle()
+  }
+}
+
+/**
+ * 解析当前生效的配置。
+ *
+ * 优先级：会话显式接管 > 会话已保存的配置 > 部署级基线。
+ * 会话保存过一次就完全接管，不会出现"删了一条规则又冒回基线"的困惑。
+ */
+export async function readResolvedConfig(
+  context: any,
+  conversationId: string,
+): Promise<{ bundle: DshConfigBundle; source: DshConfigSource }> {
+  const baseline = readGlobalConfigBundle(context)
+  let stored: unknown
+  let mode = ''
   try {
     const row = await getConversationRow(context, conversationId)
-    const stored = row?.metadata?.[DSH_CONFIG_METADATA_KEY]
-    if (!stored) return emptyConfigBundle()
-    return normalizeConfigBundle(stored)
+    stored = row?.metadata?.[DSH_CONFIG_METADATA_KEY]
+    const rawMode = row?.metadata?.[DSH_CONFIG_MODE_METADATA_KEY]
+    mode = typeof rawMode === 'string' ? rawMode : ''
   } catch (error) {
     console.warn('[dsh-web] config bundle ignored:', error)
-    return emptyConfigBundle()
+  }
+
+  if (mode === 'global') {
+    return baseline.instructions || baseline.mcpServers.length || baseline.skills.length
+      ? { bundle: baseline, source: 'global' }
+      : { bundle: emptyConfigBundle(), source: 'empty' }
+  }
+
+  if (stored) {
+    try {
+      return { bundle: normalizeConfigBundle(stored), source: 'session' }
+    } catch (error) {
+      console.warn('[dsh-web] stored config bundle rejected:', error)
+    }
+  }
+
+  return baseline.instructions || baseline.mcpServers.length || baseline.skills.length
+    ? { bundle: baseline, source: 'global' }
+    : { bundle: emptyConfigBundle(), source: 'empty' }
+}
+
+/** 读取会话实际生效的配置；给 sidecar 启动用，不关心来源。 */
+export async function readConfigBundle(context: any, conversationId: string): Promise<DshConfigBundle> {
+  const resolved = await readResolvedConfig(context, conversationId)
+  return resolved.bundle
+}
+
+/** 放弃会话覆盖，重新继承全局基线。 */
+export async function resetConfigToGlobal(context: any, conversationId: string): Promise<void> {
+  const store = context?.store
+  if (!store) throw new Error('会话存储不可用')
+  const metadata = { [DSH_CONFIG_MODE_METADATA_KEY]: 'global', [DSH_CONFIG_METADATA_KEY]: null }
+  try {
+    await store.updateConversation({ conversationId, metadata })
+  } catch {
+    try {
+      await store.updateConversation(conversationId, { metadata })
+      return
+    } catch {
+      await ensureConversation(store, conversationId)
+      await store.updateConversation({ conversationId, metadata })
+    }
   }
 }
 
@@ -235,7 +312,10 @@ async function ensureConversation(store: any, conversationId: string): Promise<v
 export async function saveConfigBundle(context: any, conversationId: string, bundle: DshConfigBundle): Promise<void> {
   const store = context?.store
   if (!store) throw new Error('会话存储不可用')
-  const metadata = { [DSH_CONFIG_METADATA_KEY]: bundle }
+  const metadata = {
+    [DSH_CONFIG_METADATA_KEY]: bundle,
+    [DSH_CONFIG_MODE_METADATA_KEY]: 'session',
+  }
   try {
     await store.updateConversation({ conversationId, metadata })
   } catch {

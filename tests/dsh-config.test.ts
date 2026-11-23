@@ -7,6 +7,9 @@ import {
   DSH_CONFIG_METADATA_KEY,
   normalizeConfigBundle,
   readConfigBundle,
+  readGlobalConfigBundle,
+  readResolvedConfig,
+  resetConfigToGlobal,
   saveConfigBundle,
   skillMarkdown,
   writeConfigFiles,
@@ -139,4 +142,48 @@ test('saveConfigBundle bootstraps a conversation that has no messages yet', asyn
   }
   await saveConfigBundle({ store }, 'conv-new', normalizeConfigBundle({ instructions: '规则' }))
   assert.equal(conversations.get('conv-new')?.metadata.dshConfigBundle ? 'ok' : '', 'ok')
+})
+
+test('readGlobalConfigBundle parses DSH_CONFIG_JSON and ignores broken values', () => {
+  const env = {
+    DSH_CONFIG_JSON: JSON.stringify({
+      instructions: '部署级规则',
+      mcpServers: [{ name: 'global-mcp', url: 'https://mcp.example.com/mcp' }],
+    }),
+  }
+  const baseline = readGlobalConfigBundle({ env })
+  assert.equal(baseline.instructions, '部署级规则')
+  assert.equal(baseline.mcpServers[0]?.name, 'global-mcp')
+
+  assert.deepEqual(readGlobalConfigBundle({ env: { DSH_CONFIG_JSON: '{not json' } }).mcpServers, [])
+  assert.deepEqual(readGlobalConfigBundle({ env: { DSH_CONFIG_JSON: '{"mcpServers":[{"name":"X","url":"ftp://a"}]}' } }).mcpServers, [])
+  assert.deepEqual(readGlobalConfigBundle({}).mcpServers, [])
+})
+
+test('readResolvedConfig prefers the session bundle and falls back to the global baseline', async () => {
+  const store = createStore(new Map([['conv-a', { metadata: {} }]]))
+  const context = {
+    store,
+    env: { DSH_CONFIG_JSON: JSON.stringify({ instructions: '全局规则' }) },
+  }
+
+  const inherited = await readResolvedConfig(context, 'conv-a')
+  assert.equal(inherited.source, 'global')
+  assert.equal(inherited.bundle.instructions, '全局规则')
+
+  await saveConfigBundle(context, 'conv-a', normalizeConfigBundle({ instructions: '会话规则' }))
+  const overridden = await readResolvedConfig(context, 'conv-a')
+  assert.equal(overridden.source, 'session')
+  assert.equal(overridden.bundle.instructions, '会话规则')
+
+  await resetConfigToGlobal(context, 'conv-a')
+  const restored = await readResolvedConfig(context, 'conv-a')
+  assert.equal(restored.source, 'global')
+  assert.equal(restored.bundle.instructions, '全局规则')
+})
+
+test('readResolvedConfig reports empty when neither session nor baseline is configured', async () => {
+  const resolved = await readResolvedConfig({ store: createStore() }, 'conv-none')
+  assert.equal(resolved.source, 'empty')
+  assert.equal(resolved.bundle.instructions, '')
 })

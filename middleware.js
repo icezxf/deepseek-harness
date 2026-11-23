@@ -8,6 +8,27 @@ const COOKIE_NAME = 'dsh_gate';
 const SESSION_SECONDS = 60 * 60 * 24 * 30; // 30 天
 const encoder = new TextEncoder();
 
+// 前端静态资源（bundle / 插件 / 样式 / 图标）不参与鉴权。
+// 原因：这些是公开的前端代码，不含任何数据；而 DSH 前端会在页面存活期间
+// 按需 import 插件 chunk，一旦被 401 拦截，加载器会抛出
+// "failed to import loader entry ... bundle script failed to load"，
+// 用户只能手动刷新才能恢复。真正的数据与模型额度在 /api/* 与 /rpc 后面。
+const PUBLIC_PREFIXES = ['/plugins/', '/assets/', '/static/', '/_next/'];
+const PUBLIC_FILES = new Set([
+  '/favicon.ico',
+  '/favicon.svg',
+  '/favicon.png',
+  '/manifest.webmanifest',
+  '/site.webmanifest',
+  '/robots.txt',
+]);
+
+function isPublicAsset(path) {
+  if (path.endsWith('.html')) return false; // 页面本身仍受保护
+  if (PUBLIC_FILES.has(path)) return true;
+  return PUBLIC_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
 function hex(buffer) {
   return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
@@ -145,6 +166,11 @@ export async function middleware(context) {
     });
   }
 
+  // 静态前端资源直接放行，避免 Cookie 失效时插件 chunk 被拦导致加载器报错
+  if (isPublicAsset(path)) {
+    return next();
+  }
+
   const token = readCookie(request.headers.get('cookie'), COOKIE_NAME);
   if (await sessionValid(token, secret)) {
     // 同时把签名回传给下游，供 agents 入口做二次校验（若平台透传自定义头）
@@ -156,6 +182,17 @@ export async function middleware(context) {
   if ((request.method === 'GET' || request.method === 'HEAD') && wantsHtml) {
     return new Response(loginPage(''), { status: 200, headers: htmlHeaders() });
   }
+
+  // 兜底：万一仍有脚本请求被拦，返回一段跳回登录页的代码，
+  // 而不是让 DSH 加载器抛出 "failed to load plugins" 这种无从下手的错误。
+  const dest = request.headers.get('sec-fetch-dest') || '';
+  if (request.method === 'GET' && (dest === 'script' || accept.includes('javascript'))) {
+    return new Response("try{location.replace('/')}catch(e){}", {
+      status: 200,
+      headers: { 'content-type': 'application/javascript; charset=utf-8', 'cache-control': 'no-store' },
+    });
+  }
+
   return new Response(JSON.stringify({ error: 'UNAUTHORIZED', message: '需要访问密码' }), {
     status: 401,
     headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },

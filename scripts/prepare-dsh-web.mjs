@@ -1261,6 +1261,35 @@ function makersBootstrap(manifest) {
     width:min(300px,84vw)!important;height:100%!important;box-shadow:8px 0 28px rgba(0,0,0,.12)!important;
   }
   [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_centerCol"]{grid-column:1!important;width:100%!important}
+
+  /* 3. 右上角的 EdgeOne Makers 快捷入口（了解更多 / GitHub 源码 / 模版部署）
+        原本是内容区顶部一条 50px 高的独立横条，手机上白占一行；
+        改为并入顶部导航条：落在搜索按钮右侧、设置按钮左侧。
+        这些节点有固定 id（#dsh-makers-chrome / -powered / -actions），
+        不是哈希类名，官方前端升级也不会失效。 */
+  #dsh-makers-chrome{
+    position:fixed!important;top:0!important;left:140px!important;right:48px!important;
+    width:auto!important;height:53px!important;margin:0!important;padding:0!important;
+    align-items:center!important;justify-content:flex-end!important;gap:2px!important;
+    z-index:11!important;pointer-events:none!important;background:transparent!important;
+  }
+  #dsh-makers-chrome > *{pointer-events:auto!important}
+  #dsh-makers-powered{
+    position:static!important;height:32px!important;padding:0!important;
+    flex:0 0 auto!important;width:auto!important;max-width:none!important;overflow:visible!important;
+  }
+  .dsh-makers-powered-label,.dsh-makers-powered-divider{display:none!important}
+  .dsh-makers-powered-more{
+    height:32px!important;padding:0 2px 0 6px!important;gap:1px!important;
+    flex:0 0 auto!important;white-space:nowrap!important;
+  }
+  .dsh-makers-powered-more-label{font-size:12px!important;line-height:1!important;white-space:nowrap!important}
+  #dsh-makers-actions{position:static!important;height:32px!important;flex:0 0 auto!important;gap:0!important}
+  #dsh-makers-actions a{width:31px!important;height:32px!important;flex:0 0 auto!important}
+  #dsh-makers-actions svg{width:16px!important;height:16px!important}
+  .dsh-makers-action-label{display:none!important}
+  /* 抽屉展开时隐藏，避免图标浮在抽屉右侧残留的内容区上 */
+  [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-chrome{display:none!important}
 }
 </style><script>
 window.__DSH_BOOT__ = ${serialized};

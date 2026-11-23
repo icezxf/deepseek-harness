@@ -1209,17 +1209,58 @@ function makersBootstrap(manifest) {
 .dsh-makers-locked{opacity:.45;cursor:not-allowed}
 #dsh-makers-hover-tip{position:fixed;z-index:2147483647;pointer-events:none;background:var(--dsw-alias-label-primary,#1a1a1a);color:var(--dsw-alias-bg-layer-3,#fff);white-space:nowrap;border-radius:6px;padding:4px 8px;font-size:11px;line-height:17px;font-weight:400;max-width:min(320px,calc(100vw - 16px));box-shadow:0 4px 12px rgba(0,0,0,.18)}
 #dsh-makers-hover-tip[hidden]{display:none!important}
-/* ---- 移动端适配（窄屏）：修复输入框底部工具栏文字重叠 ----
-   根因：窄屏下 composer 的 tools 容器被 flex 压成 0 宽，但其中的 workspace
-   模式选择器文字以 overflow:visible 溢出，正好叠在模型选择器上，导致
-   "Workspace Write" 与 "DeepSeek-V4-Flash Default" 两段文字叠印。
-   处理：移动端隐藏 workspace 模式选择器（默认 Write 模式仍生效），
-   让模型选择器独占空间；用 :has() 限定作用域，避免影响设置页等其他 row。 */
+/* ---- 移动端适配（窄屏 ≤700px）----
+   1) 修复输入框底部工具栏文字重叠：窄屏下 composer 的 tools 容器被 flex
+      压成 0 宽，但 workspace 模式选择器文字 overflow:visible 溢出，正好叠在
+      模型选择器上（"Workspace Write" 与 "DeepSeek-V4-Flash Default" 叠印）。
+      处理：隐藏 workspace 模式选择器（默认 Write 仍生效），模型选择器独占。
+   2) 侧边栏顶部化：折叠 rail 原本是占 56px 宽的左侧竖条，浪费窄屏横向空间。
+      处理：把折叠态 rail 改为 52px 高的顶部横条（logo/新建/搜索在左，设置
+      在右），内容区下移并占满整宽；展开态抽屉浮层覆盖内容、不再挤压变形。
+      作用域严格限定 data-sidebar-collapsed，避免影响桌面端与设置页。 */
 @media (max-width:700px){
   [class*="_row"]:has([class*="_tools"]) [class*="_modes"]{display:none!important}
   [class*="_row"]:has([class*="_tools"]){gap:8px!important}
   [class*="_row"]:has([class*="_tools"]) [class*="_trailing"]{min-width:0!important;flex:1 1 auto!important}
   [class*="_headline"]{font-size:20px!important;column-gap:6px!important}
+
+  /* 2a. 折叠态：rail 变顶部横条，内容区下移占满宽度 */
+  [class*="_frame"][data-sidebar-collapsed="true"]{
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:52px minmax(0,1fr)!important;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] > [class*="_sidebarCol"]{
+    grid-column:1!important;grid-row:1!important;
+    width:100%!important;height:52px!important;
+    border-bottom:1px solid rgba(0,0,0,.06);z-index:10;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] > [class*="_centerCol"]{
+    grid-column:1!important;grid-row:2!important;
+    width:100%!important;min-height:0!important;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] > [class*="_detailsCol"]{display:none!important}
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_root"][class*="_collapsed"]{
+    flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;
+    width:100%!important;height:52px!important;padding:0 12px!important;box-sizing:border-box!important;gap:6px!important;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_logoRow"],
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_newSession"]{flex:0 0 auto!important;height:40px!important}
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_regionArea"]{
+    flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;height:40px!important;width:auto!important;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_root"][class*="_rail"]{flex-direction:row!important;height:40px!important;width:auto!important}
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_listArea"]{display:none!important}
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_footArea"]{
+    flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;height:40px!important;margin-left:auto!important;
+  }
+
+  /* 2b. 展开态：data-sidebar-collapsed 属性消失，抽屉浮层覆盖内容，右侧不再被挤压变形 */
+  [class*="_frame"]:not([data-sidebar-collapsed]){grid-template-columns:minmax(0,1fr)!important}
+  [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"]{
+    position:absolute!important;left:0!important;top:0!important;z-index:60!important;
+    width:min(300px,84vw)!important;height:100%!important;box-shadow:8px 0 28px rgba(0,0,0,.12)!important;
+  }
+  [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_centerCol"]{grid-column:1!important;width:100%!important}
 }
 </style><script>
 window.__DSH_BOOT__ = ${serialized};

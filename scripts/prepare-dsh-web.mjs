@@ -1209,6 +1209,18 @@ function makersBootstrap(manifest) {
 .dsh-makers-locked{opacity:.45;cursor:not-allowed}
 #dsh-makers-hover-tip{position:fixed;z-index:2147483647;pointer-events:none;background:var(--dsw-alias-label-primary,#1a1a1a);color:var(--dsw-alias-bg-layer-3,#fff);white-space:nowrap;border-radius:6px;padding:4px 8px;font-size:11px;line-height:17px;font-weight:400;max-width:min(320px,calc(100vw - 16px));box-shadow:0 4px 12px rgba(0,0,0,.18)}
 #dsh-makers-hover-tip[hidden]{display:none!important}
+/* ---- 移动端适配（窄屏）：修复输入框底部工具栏文字重叠 ----
+   根因：窄屏下 composer 的 tools 容器被 flex 压成 0 宽，但其中的 workspace
+   模式选择器文字以 overflow:visible 溢出，正好叠在模型选择器上，导致
+   "Workspace Write" 与 "DeepSeek-V4-Flash Default" 两段文字叠印。
+   处理：移动端隐藏 workspace 模式选择器（默认 Write 模式仍生效），
+   让模型选择器独占空间；用 :has() 限定作用域，避免影响设置页等其他 row。 */
+@media (max-width:700px){
+  [class*="_row"]:has([class*="_tools"]) [class*="_modes"]{display:none!important}
+  [class*="_row"]:has([class*="_tools"]){gap:8px!important}
+  [class*="_row"]:has([class*="_tools"]) [class*="_trailing"]{min-width:0!important;flex:1 1 auto!important}
+  [class*="_headline"]{font-size:20px!important;column-gap:6px!important}
+}
 </style><script>
 window.__DSH_BOOT__ = ${serialized};
 (() => {

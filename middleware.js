@@ -145,8 +145,10 @@ export async function middleware(context) {
     });
   }
 
-  if (await sessionValid(readCookie(request.headers.get('cookie'), COOKIE_NAME), secret)) {
-    return next();
+  const token = readCookie(request.headers.get('cookie'), COOKIE_NAME);
+  if (await sessionValid(token, secret)) {
+    // 同时把签名回传给下游，供 agents 入口做二次校验（若平台透传自定义头）
+    return next({ headers: { 'x-dsh-gate': token } });
   }
 
   const accept = request.headers.get('accept') || '';

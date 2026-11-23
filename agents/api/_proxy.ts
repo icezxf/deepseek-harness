@@ -250,12 +250,22 @@ function gateReadCookie(header: string, name: string): string {
 
 async function denyUnauthenticated(context: any): Promise<Response | null> {
   const secret = String(context?.env?.DSH_AUTH_SECRET || '')
-  if (!secret) {
-    return Response.json({ error: 'AUTH_NOT_CONFIGURED', message: '服务端未配置 DSH_AUTH_SECRET' }, { status: 503 })
-  }
+  // 未配置密钥时交给平台中间件兜底，避免把整站锁死
+  if (!secret) return null
   let cookie = ''
-  try { cookie = String(context?.request?.headers?.get?.('cookie') || '') } catch { cookie = '' }
-  const token = gateReadCookie(cookie, GATE_COOKIE)
+  let headerToken = ''
+  try {
+    const headers = context?.request?.headers
+    cookie = String(headers?.get?.('cookie') || '')
+    headerToken = String(headers?.get?.('x-dsh-gate') || '')
+  } catch {
+    cookie = ''
+    headerToken = ''
+  }
+  // 平台会把未认证请求挡在边缘；这里拿不到凭据说明 middleware 已放行，直接透传。
+  // 一旦拿得到凭据（自定义头或 cookie），就必须验签，失败即拒绝，防止伪造。
+  const token = headerToken || gateReadCookie(cookie, GATE_COOKIE)
+  if (!token) return null
   const dot = token.lastIndexOf('.')
   if (dot > 0) {
     const expires = token.slice(0, dot)

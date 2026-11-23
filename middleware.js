@@ -84,6 +84,7 @@ function loginPage(message) {
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0b0e14">
 <meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <title>访问验证 · DeepSeek Harness</title>
 <style>
 *{box-sizing:border-box}

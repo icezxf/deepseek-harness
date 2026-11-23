@@ -216,7 +216,61 @@ async function proxy(context: any): Promise<Response> {
   return new Response(upstream.body, { status: upstream.status, headers })
 }
 
+// ---- 访问密码二次校验（与根目录 middleware.js 共用 dsh_gate cookie 约定）----
+// 平台中间件是第一道门；这里在 Agent 入口再验一次，避免 middleware 未覆盖
+// agents 路由时 API 被绕过。fail-closed：未配置密钥直接拒绝，避免静默放行。
+const GATE_COOKIE = 'dsh_gate'
+const gateEncoder = new TextEncoder()
+
+function gateHex(buffer: ArrayBuffer): string {
+  return [...new Uint8Array(buffer)].map(byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+async function gateSign(secret: string, data: string): Promise<string> {
+  const key = await crypto.subtle.importKey('raw', gateEncoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign'])
+  return gateHex(await crypto.subtle.sign('HMAC', key, gateEncoder.encode(data)))
+}
+
+function gateSafeEqual(a: string, b: string): boolean {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  return diff === 0
+}
+
+function gateReadCookie(header: string, name: string): string {
+  if (!header) return ''
+  for (const chunk of header.split(';')) {
+    const index = chunk.indexOf('=')
+    if (index < 0) continue
+    if (chunk.slice(0, index).trim() === name) return chunk.slice(index + 1).trim()
+  }
+  return ''
+}
+
+async function denyUnauthenticated(context: any): Promise<Response | null> {
+  const secret = String(context?.env?.DSH_AUTH_SECRET || '')
+  if (!secret) {
+    return Response.json({ error: 'AUTH_NOT_CONFIGURED', message: '服务端未配置 DSH_AUTH_SECRET' }, { status: 503 })
+  }
+  let cookie = ''
+  try { cookie = String(context?.request?.headers?.get?.('cookie') || '') } catch { cookie = '' }
+  const token = gateReadCookie(cookie, GATE_COOKIE)
+  const dot = token.lastIndexOf('.')
+  if (dot > 0) {
+    const expires = token.slice(0, dot)
+    const signature = token.slice(dot + 1)
+    const stamp = Number(expires)
+    if (Number.isFinite(stamp) && stamp >= Date.now() && gateSafeEqual(await gateSign(secret, expires), signature)) {
+      return null
+    }
+  }
+  return Response.json({ error: 'UNAUTHORIZED', message: '需要访问密码' }, { status: 401 })
+}
+
 export async function onRequest(context: any): Promise<Response> {
+  const denied = await denyUnauthenticated(context)
+  if (denied) return denied
   try {
     return await proxy(context)
   } catch (error) {

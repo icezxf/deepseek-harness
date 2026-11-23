@@ -7,6 +7,8 @@ const root = fileURLToPath(new URL('..', import.meta.url))
 const publicDir = join(root, 'public')
 const modulesRoot = join(root, 'node_modules', '@deepseek-ai')
 const webDist = join(modulesRoot, 'dsh-web-frontend', 'dist')
+// 会话级运行配置面板（全局规则 / MCP / 技能），随页面一起注入。
+const configPanelHtml = await readFile(join(root, 'scripts', 'web', 'dsh-config-panel.html'), 'utf8')
 const excluded = new Set([
   // The Makers deployment has no native desktop directory chooser. The
   // native row is retained because the upstream Web composition selects it;
@@ -987,9 +989,9 @@ const makersActionsHead = [
   '#dsh-makers-chrome>*{pointer-events:auto}',
   '#dsh-makers-actions{position:relative;z-index:0;display:flex;align-items:center;gap:2px;margin:0;padding:0;border:none;background:transparent;font-family:inherit;flex:none}',
   '#dsh-makers-actions[data-docked=true]{position:static}',
-  '#dsh-makers-actions a{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:none;border-radius:9px;color:#57606a;background:transparent;text-decoration:none;font:inherit;font-size:14px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer;transition:background .16s,color .16s}',
-  '#dsh-makers-actions a:hover{background:#f2f4f7;color:#1f2328}',
-  '#dsh-makers-actions a:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#3964fe);outline-offset:1px}',
+  '#dsh-makers-actions a,#dsh-makers-actions button{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:none;border-radius:9px;color:#57606a;background:transparent;text-decoration:none;font:inherit;font-size:14px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer;appearance:none;transition:background .16s,color .16s}',
+  '#dsh-makers-actions a:hover,#dsh-makers-actions button:hover{background:#f2f4f7;color:#1f2328}',
+  '#dsh-makers-actions a:focus-visible,#dsh-makers-actions button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#3964fe);outline-offset:1px}',
   '#dsh-makers-actions svg{flex:none}',
   '#dsh-makers-powered{position:absolute;top:10px;left:50%;z-index:0;display:inline-flex;align-items:center;gap:8px;height:28px;max-width:calc(100% - 2 * var(--dsh-makers-actions-width, 0px));padding:0 8px;border:none;border-radius:8px;background:transparent;color:#8b949e;font:inherit;font-size:12.5px;line-height:18px;white-space:nowrap;box-sizing:border-box;overflow:hidden;transform:translateX(-50%);pointer-events:auto}',
   '#dsh-makers-powered b{color:#5b6470;font-weight:600}',
@@ -1019,7 +1021,7 @@ const makersActionsHead = [
   '#dsh-makers-contact .dsh-makers-contact-later:hover{border-color:#6b7280;background:#f7f8fa}',
   '#dsh-makers-contact .dsh-makers-contact-go{border:none;background:#3b5cff;color:#fff;font-weight:600}',
   '#dsh-makers-contact .dsh-makers-contact-go:hover{background:#2f4fe6}',
-  '@container dsh-center (max-width:880px){#dsh-makers-actions .dsh-makers-action-label,#dsh-makers-powered .dsh-makers-powered-label,#dsh-makers-powered .dsh-makers-powered-divider{display:none}#dsh-makers-actions a{padding:0 8px}#dsh-makers-powered{padding:0 6px;gap:0}}',
+  '@container dsh-center (max-width:880px){#dsh-makers-actions .dsh-makers-action-label,#dsh-makers-powered .dsh-makers-powered-label,#dsh-makers-powered .dsh-makers-powered-divider{display:none}#dsh-makers-actions a,#dsh-makers-actions button{padding:0 8px}#dsh-makers-powered{padding:0 6px;gap:0}}',
   '@container dsh-center (max-width:360px){#dsh-makers-powered{visibility:hidden;pointer-events:none}}',
   '</style><script>',
   '(() => {',
@@ -1029,8 +1031,8 @@ const makersActionsHead = [
   '  const deployHref = intl ? "https://edgeone.ai/makers/new" + deployParams : "https://console.cloud.tencent.com/edgeone/makers/new" + deployParams;',
   '  const contactHref = intl ? "https://pages.edgeone.ai/contact?source=deepseek-harness" : "https://cloud.tencent.com/online-service?from=connect-us";',
   '  const copy = {',
-  '    zh: { github: "GitHub 源码", deploy: "模版部署", powered: "基于 <b>EdgeOne Makers Agents</b> 部署", more: "了解更多", poweredTitle: "集成到我的产品", title: "从 DeepSeek Harness 到你的云端 Agent", body: "DeepSeek Harness 已接入 EdgeOne Makers Agents。部署后，你可以自由扩展模型、工具、技能与界面，打造适用于 Vibe Coding、任务自动化和内容生产的云端 Agent，并将生成的应用与内容发布至全球边缘网络。Makers 提供 Agent 托管、安全沙箱与应用交付的一体化方案。", later: "以后再说", go: "联系我们" },',
-    '    en: { github: "GitHub", deploy: "Deploy", powered: "Powered by <b>EdgeOne Makers Agents</b>", more: "Learn more", poweredTitle: "Integrate with my product", title: "From DeepSeek Harness to Your Cloud Agent", body: "DeepSeek Harness now runs on EdgeOne Makers Agents. After you deploy, you can extend models, tools, skills, and the UI to build a cloud Agent for Vibe Coding, task automation, and content production, then publish generated apps and content to the global edge network. Makers provides an integrated solution for Agent hosting, a secure sandbox, and app delivery.", later: "Maybe later", go: "Contact us" }',
+  '    zh: { github: "GitHub 源码", deploy: "模版部署", powered: "基于 <b>EdgeOne Makers Agents</b> 部署", more: "了解更多", config: "运行配置", poweredTitle: "集成到我的产品", title: "从 DeepSeek Harness 到你的云端 Agent", body: "DeepSeek Harness 已接入 EdgeOne Makers Agents。部署后，你可以自由扩展模型、工具、技能与界面，打造适用于 Vibe Coding、任务自动化和内容生产的云端 Agent，并将生成的应用与内容发布至全球边缘网络。Makers 提供 Agent 托管、安全沙箱与应用交付的一体化方案。", later: "以后再说", go: "联系我们" },',
+    '    en: { github: "GitHub", deploy: "Deploy", powered: "Powered by <b>EdgeOne Makers Agents</b>", more: "Learn more", config: "Config", poweredTitle: "Integrate with my product", title: "From DeepSeek Harness to Your Cloud Agent", body: "DeepSeek Harness now runs on EdgeOne Makers Agents. After you deploy, you can extend models, tools, skills, and the UI to build a cloud Agent for Vibe Coding, task automation, and content production, then publish generated apps and content to the global edge network. Makers provides an integrated solution for Agent hosting, a secure sandbox, and app delivery.", later: "Maybe later", go: "Contact us" }',
   '  };',
   '  const localeOf = () => {',
   '    const lang = (document.documentElement.lang || "").toLowerCase();',
@@ -1041,6 +1043,7 @@ const makersActionsHead = [
   '  const githubIcon = \'<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8"/></svg>\';',
   '  const deployIcon = \'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 15c-1 2-1 4-1 4s2 0 4-1"/><path d="M9 18c-1.5-.6-2.4-1.5-3-3 3.2-7 7.6-9.5 14-9-.5 6.4-3 10.8-10 14z"/><path d="M13.5 10.5a1.5 1.5 0 1 0 2.1-2.1 1.5 1.5 0 0 0-2.1 2.1z"/></svg>\';',
   '  const moreIcon = \'<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>\';',
+  '  const configIcon = \'<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 9 19.4a1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>\';',
   '  const bubbleIcon = \'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>\';',
   '  const mount = () => {',
   '    if (document.getElementById("dsh-makers-actions")) return;',
@@ -1056,8 +1059,17 @@ const makersActionsHead = [
   '    const deploy = document.createElement("a");',
   '    deploy.target = "_blank";',
   '    deploy.rel = "noopener noreferrer";',
-  '    deploy.innerHTML = deployIcon + \'<span class="dsh-makers-action-label"></span>\';',
-  '    nav.append(github, deploy);',
+    '    deploy.innerHTML = deployIcon + \'<span class="dsh-makers-action-label"></span>\';',
+    '    const config = document.createElement("button");',
+    '    config.type = "button";',
+    '    config.id = "dsh-makers-config";',
+    '    config.innerHTML = configIcon + \'<span class="dsh-makers-action-label"></span>\';',
+    '    config.addEventListener("click", (event) => {',
+    '      event.preventDefault();',
+    '      event.stopPropagation();',
+    '      if (window.dshMakersConfig) window.dshMakersConfig.open();',
+    '    });',
+    '    nav.append(github, deploy, config);',
   '    const powered = document.createElement("div");',
   '    powered.id = "dsh-makers-powered";',
   '    powered.dataset.docked = "false";',
@@ -1161,6 +1173,8 @@ const makersActionsHead = [
   '      deploy.href = deployHref;',
   '      deploy.title = t.deploy;',
   '      deploy.querySelector(".dsh-makers-action-label").textContent = t.deploy;',
+  '      config.title = t.config;',
+  '      config.querySelector(".dsh-makers-action-label").textContent = t.config;',
   '      more.title = t.poweredTitle;',
   '      more.querySelector(".dsh-makers-powered-more-label").textContent = t.more;',
   '      powered.querySelector(".dsh-makers-powered-label").innerHTML = t.powered;',
@@ -1285,7 +1299,7 @@ function makersBootstrap(manifest) {
   }
   .dsh-makers-powered-more-label{font-size:12px!important;line-height:1!important;white-space:nowrap!important}
   #dsh-makers-actions{position:static!important;height:32px!important;flex:0 0 auto!important;gap:0!important}
-  #dsh-makers-actions a{width:31px!important;height:32px!important;flex:0 0 auto!important}
+  #dsh-makers-actions a,#dsh-makers-actions button{width:31px!important;height:32px!important;flex:0 0 auto!important}
   #dsh-makers-actions svg{width:16px!important;height:16px!important}
   .dsh-makers-action-label{display:none!important}
   /* 抽屉展开时隐藏，避免图标浮在抽屉右侧残留的内容区上 */
@@ -1362,7 +1376,8 @@ window.__DSH_BOOT__ = ${serialized};
   window.addEventListener('scroll', hide, true);
 })();
 </script>
-${makersActionsHead}`
+${makersActionsHead}
+${configPanelHtml}`
 }
 
 await rm(publicDir, { recursive: true, force: true })

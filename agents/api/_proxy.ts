@@ -248,7 +248,7 @@ function gateReadCookie(header: string, name: string): string {
   return ''
 }
 
-async function denyUnauthenticated(context: any): Promise<Response | null> {
+export async function denyUnauthenticated(context: any): Promise<Response | null> {
   const secret = String(context?.env?.DSH_AUTH_SECRET || '')
   // 未配置密钥时交给平台中间件兜底，避免把整站锁死
   if (!secret) return null

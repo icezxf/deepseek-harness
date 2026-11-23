@@ -3,6 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
+import { readConfigBundle, writeConfigFiles, type DshMcpServerConfig } from './_dsh-config.ts'
 import { startLocalGatewayProxy, type LocalGatewayProxy } from './_gateway-proxy.ts'
 import { makersMcpPermissionSource } from './_makers-mcp-permission.mjs'
 import { startLocalMcpBridge, type LocalMcpBridge } from './_mcp-bridge.ts'
@@ -264,9 +265,53 @@ function modelYaml(models: MakersModel[]): string[] {
   ])
 }
 
+/** 用户配置的额外 MCP 服务器：每台生成一条 dsh-mcp-client 插入项。 */
+function extraMcpYaml(servers: DshMcpServerConfig[]): string[] {
+  const usedIds = new Set<string>(['makers-mcp'])
+  const usedNames = new Set<string>(['edgeone'])
+  const lines: string[] = []
+  for (const server of servers) {
+    if (!server.enabled) continue
+    let entryId = `mcp-${server.id || server.name}`
+    let entrySuffix = 2
+    while (usedIds.has(entryId)) {
+      entryId = `mcp-${server.id || server.name}-${String(entrySuffix)}`
+      entrySuffix += 1
+    }
+    usedIds.add(entryId)
+    let serverName = server.name
+    let nameSuffix = 2
+    while (usedNames.has(serverName)) {
+      serverName = `${server.name}-${String(nameSuffix)}`
+      nameSuffix += 1
+    }
+    usedNames.add(serverName)
+    const headers = Object.entries(server.headers)
+    lines.push(
+      `    - id: ${JSON.stringify(entryId)}`,
+      "      name: '@deepseek-ai/dsh-mcp-client'",
+      '      config:',
+      '        transport: streamable-http',
+      `        serverName: ${JSON.stringify(serverName)}`,
+      `        url: ${JSON.stringify(server.url)}`,
+      ...(headers.length
+        ? ['        headers:', ...headers.map(([key, value]) => `          ${JSON.stringify(key)}: ${JSON.stringify(value)}`)]
+        : ['        headers: {}']),
+      '        toolCallTimeoutMs: 120000',
+      '        failOnStartupError: false',
+      '        reconnect:',
+      '          enabled: true',
+      '          initialDelayMs: 1000',
+      '          maxDelayMs: 10000',
+      '          maxAttempts: 10',
+    )
+  }
+  return lines
+}
+
 async function writeProfilePatch(
   home: string,
-  options: { mcpUrl: string; gatewayBaseUrl: string; defaultModel: string },
+  options: { mcpUrl: string; gatewayBaseUrl: string; defaultModel: string; mcpServers: DshMcpServerConfig[] },
 ): Promise<void> {
   await mkdir(join(home, 'profiles', 'web'), { recursive: true })
   const presetRoot = join(home, '.agent-presets', 'makers')
@@ -355,6 +400,24 @@ async function writeProfilePatch(
     '          maxDelayMs: 5000',
     '          maxAttempts: 20',
     '',
+    // 用户配置的额外能力：技能目录、技能加载工具、全局规则、额外 MCP 服务器。
+    // 基础 profile 里 skill-filesystem / tool-skill / agent-instructions 默认是关闭的，
+    // 这里用新的 entry id 插入一份启用版本，避免直接改写官方 include 条目。
+    '- insert:',
+    '    - id: makers-skill-filesystem',
+    "      name: '@deepseek-ai/dsh-skill-filesystem'",
+    '      config:',
+    '        includeDefaultRoots: true',
+    '        watch: false',
+    '    - id: makers-tool-skill',
+    "      name: '@deepseek-ai/dsh-tool-skill'",
+    '    - id: makers-agent-instructions',
+    "      name: '@deepseek-ai/dsh-agent-instructions'",
+    '      config:',
+    '        maxBytes: 24000',
+    '        maxSourceBytes: 32000',
+    ...extraMcpYaml(options.mcpServers),
+    '',
   ].join('\n'))
 }
 
@@ -420,10 +483,17 @@ async function startSidecar(context: any, conversationId: string): Promise<DshWe
   await mkdir(home, { recursive: true })
   await restoreDshSettingsYaml(context, conversationId, home)
   await ensureMakersDefaultModelSettings(home, defaultModel)
+  const configBundle = await readConfigBundle(context, conversationId)
+  try {
+    await writeConfigFiles(home, configBundle)
+  } catch (error) {
+    console.warn('[dsh-web] config files not restored:', error)
+  }
   await writeProfilePatch(home, {
     mcpUrl: mcp.url,
     gatewayBaseUrl: gateway.baseUrl,
     defaultModel,
+    mcpServers: configBundle.mcpServers,
   })
 
   const dshBin = join(dirname(require.resolve('@deepseek-ai/dsh/package.json')), 'lib', 'bin.js')

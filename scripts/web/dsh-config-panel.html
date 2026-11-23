@@ -1,0 +1,265 @@
+<!-- dsh-makers-config-panel：会话级运行配置（全局规则 / MCP / 技能） -->
+<style>
+#dsh-makers-config-panel{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;box-sizing:border-box;padding:16px;font-family:system-ui,-apple-system,"Segoe UI","PingFang SC",sans-serif}
+#dsh-makers-config-panel[hidden]{display:none!important}
+#dsh-makers-config-panel .dsh-cfg-overlay{position:absolute;inset:0;background:rgba(15,17,23,.46);backdrop-filter:blur(2px)}
+#dsh-makers-config-panel .dsh-cfg-card{position:relative;z-index:1;display:flex;flex-direction:column;width:min(760px,100%);max-height:min(88vh,880px);overflow:hidden;border-radius:16px;background:#fff;color:#17181c;box-shadow:0 26px 70px rgba(17,18,22,.32)}
+#dsh-makers-config-panel header{position:relative;flex:none;padding:20px 24px 14px;border-bottom:1px solid #eef0f3}
+#dsh-makers-config-panel h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.2px}
+#dsh-makers-config-panel .dsh-cfg-sub{margin:6px 0 0;color:#6b7280;font-size:12.5px;line-height:1.6}
+#dsh-makers-config-panel .dsh-cfg-x{position:absolute;top:14px;right:16px;width:30px;height:30px;border:none;border-radius:8px;background:transparent;color:#6b7280;font-size:20px;line-height:1;cursor:pointer}
+#dsh-makers-config-panel .dsh-cfg-x:hover{background:#f2f4f7;color:#17181c}
+#dsh-makers-config-panel .dsh-cfg-body{flex:1 1 auto;overflow:auto;padding:16px 24px 8px}
+#dsh-makers-config-panel section{margin-bottom:20px}
+#dsh-makers-config-panel h3{margin:0 0 8px;font-size:13px;font-weight:600;color:#374151}
+#dsh-makers-config-panel h3 small{margin-left:6px;color:#9aa3af;font-size:11.5px;font-weight:400}
+#dsh-makers-config-panel textarea,#dsh-makers-config-panel input{box-sizing:border-box;width:100%;border:1px solid #d8dce3;border-radius:9px;background:#fff;color:#17181c;font:inherit;font-size:13px;line-height:1.6;padding:8px 10px;outline:none}
+#dsh-makers-config-panel textarea{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+#dsh-makers-config-panel textarea:focus,#dsh-makers-config-panel input:focus{border-color:#3b5cff;box-shadow:0 0 0 3px rgba(59,92,255,.12)}
+#dsh-makers-config-panel .dsh-cfg-list{display:flex;flex-direction:column;gap:10px}
+#dsh-makers-config-panel .dsh-cfg-item{border:1px solid #e8eaee;border-radius:11px;padding:10px 12px;background:#fcfcfd}
+#dsh-makers-config-panel .dsh-cfg-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+#dsh-makers-config-panel .dsh-cfg-row>*{min-width:0}
+#dsh-makers-config-panel .dsh-cfg-row label{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;color:#6b7280;font-size:12px;white-space:nowrap}
+#dsh-makers-config-panel .dsh-cfg-row input:not([type=checkbox]){flex:1 1 auto}
+#dsh-makers-config-panel .dsh-cfg-row input[type=checkbox]{width:auto;flex:none}
+#dsh-makers-config-panel .dsh-cfg-del{flex:none;border:1px solid #e4e7ec;border-radius:8px;background:#fff;color:#b42318;font-size:12px;height:30px;padding:0 10px;cursor:pointer}
+#dsh-makers-config-panel .dsh-cfg-del:hover{background:#fef3f2;border-color:#fda29b}
+#dsh-makers-config-panel .dsh-cfg-add{border:1px dashed #cfd4dc;border-radius:9px;background:#fff;color:#3b5cff;font-size:12.5px;font-weight:500;height:34px;padding:0 12px;cursor:pointer}
+#dsh-makers-config-panel .dsh-cfg-add:hover{background:#f5f7ff;border-color:#9db1ff}
+#dsh-makers-config-panel .dsh-cfg-empty{margin:0 0 8px;color:#9aa3af;font-size:12.5px}
+#dsh-makers-config-panel footer{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;border-top:1px solid #eef0f3;background:#fafbfc}
+#dsh-makers-config-panel #dsh-cfg-status{flex:1 1 auto;min-width:0;color:#6b7280;font-size:12.5px;line-height:1.5;overflow-wrap:anywhere}
+#dsh-makers-config-panel #dsh-cfg-status[data-tone=error]{color:#b42318}
+#dsh-makers-config-panel #dsh-cfg-status[data-tone=ok]{color:#067647}
+#dsh-makers-config-panel .dsh-cfg-actions{display:flex;gap:8px;flex:none}
+#dsh-makers-config-panel .dsh-cfg-actions button{height:36px;padding:0 16px;border-radius:9px;font-size:13px;font-weight:500;cursor:pointer}
+#dsh-makers-config-panel .dsh-cfg-cancel{border:1px solid #d6dae1;background:#fff;color:#17181c}
+#dsh-makers-config-panel .dsh-cfg-save{border:none;background:#3b5cff;color:#fff;font-weight:600}
+#dsh-makers-config-panel .dsh-cfg-save:disabled{opacity:.6;cursor:default}
+@media (max-width:640px){
+  #dsh-makers-config-panel{padding:0}
+  #dsh-makers-config-panel .dsh-cfg-card{width:100%;height:100%;max-height:none;border-radius:0}
+  #dsh-makers-config-panel header{padding:16px 16px 12px}
+  #dsh-makers-config-panel .dsh-cfg-body{padding:12px 16px 4px}
+  #dsh-makers-config-panel footer{padding:12px 16px}
+}
+</style>
+<script>
+(() => {
+  if (window.dshMakersConfig) return;
+  const PANEL_HTML = '<div id="dsh-makers-config-panel" hidden>'
+    + '<div class="dsh-cfg-overlay" data-cfg-close="1"></div>'
+    + '<div class="dsh-cfg-card" role="dialog" aria-modal="true" aria-labelledby="dsh-cfg-title">'
+    + '<header><h2 id="dsh-cfg-title">运行配置</h2>'
+    + '<p class="dsh-cfg-sub">保存在当前会话（conversation metadata），刷新与冷启动后依然生效。</p>'
+    + '<button type="button" class="dsh-cfg-x" data-cfg-close="1" aria-label="关闭">×</button></header>'
+    + '<div class="dsh-cfg-body">'
+    + '<section><h3>全局规则<small>写入 AGENTS.md，每次会话开始注入</small></h3>'
+    + '<textarea id="dsh-cfg-instructions" rows="5" placeholder="例如：所有回答使用中文；改动前先读文件；不要执行破坏性命令。"></textarea></section>'
+    + '<section><h3>MCP 服务器<small>Streamable HTTP，可带自定义请求头</small></h3>'
+    + '<div id="dsh-cfg-servers" class="dsh-cfg-list"></div>'
+    + '<button type="button" class="dsh-cfg-add" data-cfg-add="server">+ 添加 MCP 服务器</button></section>'
+    + '<section><h3>技能<small>写入 skills/&lt;name&gt;/SKILL.md</small></h3>'
+    + '<div id="dsh-cfg-skills" class="dsh-cfg-list"></div>'
+    + '<button type="button" class="dsh-cfg-add" data-cfg-add="skill">+ 添加技能</button></section>'
+    + '</div>'
+    + '<footer><span id="dsh-cfg-status"></span>'
+    + '<div class="dsh-cfg-actions">'
+    + '<button type="button" class="dsh-cfg-cancel" data-cfg-close="1">取消</button>'
+    + '<button type="button" class="dsh-cfg-save" id="dsh-cfg-save">保存并重启会话</button>'
+    + '</div></footer></div></div>';
+
+  let panel = null;
+  let refs = null;
+  let bundle = { instructions: '', mcpServers: [], skills: [] };
+  let busy = false;
+
+  const escapeHtml = (value) => String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  const setStatus = (text, tone) => {
+    if (!refs) return;
+    refs.status.textContent = text || '';
+    if (tone) refs.status.dataset.tone = tone;
+    else delete refs.status.dataset.tone;
+  };
+
+  const serverRow = (server, index) => `
+    <div class="dsh-cfg-item" data-kind="server" data-index="${index}">
+      <div class="dsh-cfg-row">
+        <input data-field="name" value="${escapeHtml(server.name)}" placeholder="名称，例如 context7" aria-label="MCP 名称" />
+        <label><input type="checkbox" data-field="enabled" ${server.enabled ? 'checked' : ''} />启用</label>
+        <button type="button" class="dsh-cfg-del" data-cfg-remove="server">删除</button>
+      </div>
+      <div class="dsh-cfg-row">
+        <input data-field="url" value="${escapeHtml(server.url)}" placeholder="https://example.com/mcp" aria-label="MCP 地址" />
+      </div>
+      <textarea data-field="headers" rows="2" placeholder='请求头 JSON，例如 {"Authorization":"Bearer xxx"}' aria-label="MCP 请求头">${escapeHtml(JSON.stringify(server.headers && Object.keys(server.headers).length ? server.headers : {}))}</textarea>
+    </div>`;
+
+  const skillRow = (skill, index) => `
+    <div class="dsh-cfg-item" data-kind="skill" data-index="${index}">
+      <div class="dsh-cfg-row">
+        <input data-field="name" value="${escapeHtml(skill.name)}" placeholder="名称，例如 pdf-report" aria-label="技能名称" />
+        <button type="button" class="dsh-cfg-del" data-cfg-remove="skill">删除</button>
+      </div>
+      <div class="dsh-cfg-row">
+        <input data-field="description" value="${escapeHtml(skill.description)}" placeholder="一句话说明何时使用（模型靠它决定是否加载）" aria-label="技能描述" />
+      </div>
+      <textarea data-field="body" rows="5" placeholder="技能正文（Markdown），会被写进 SKILL.md" aria-label="技能正文">${escapeHtml(skill.body)}</textarea>
+    </div>`;
+
+  const render = () => {
+    if (!refs) return;
+    refs.servers.innerHTML = bundle.mcpServers.length
+      ? bundle.mcpServers.map(serverRow).join('')
+      : '<p class="dsh-cfg-empty">还没有额外的 MCP 服务器，内置的 EdgeOne Makers 工具始终可用。</p>';
+    refs.skills.innerHTML = bundle.skills.length
+      ? bundle.skills.map(skillRow).join('')
+      : '<p class="dsh-cfg-empty">还没有技能。技能是可按需加载的 Markdown 说明文档。</p>';
+  };
+
+  const collect = () => {
+    bundle.instructions = refs.instructions.value;
+    bundle.mcpServers = [...refs.servers.querySelectorAll('[data-kind="server"]')].map((item) => {
+      let headers = {};
+      try {
+        const parsed = JSON.parse(item.querySelector('[data-field="headers"]').value || '{}');
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) headers = parsed;
+      } catch {
+        throw new Error('MCP 请求头需要是合法 JSON');
+      }
+      const name = item.querySelector('[data-field="name"]').value.trim();
+      return {
+        id: name,
+        name,
+        url: item.querySelector('[data-field="url"]').value.trim(),
+        headers,
+        enabled: item.querySelector('[data-field="enabled"]').checked,
+      };
+    });
+    bundle.skills = [...refs.skills.querySelectorAll('[data-kind="skill"]')].map((item) => ({
+      name: item.querySelector('[data-field="name"]').value.trim(),
+      description: item.querySelector('[data-field="description"]').value.trim(),
+      body: item.querySelector('[data-field="body"]').value,
+    }));
+  };
+
+  const load = async () => {
+    setStatus('读取配置…');
+    try {
+      const response = await fetch('/api/dshConfig', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'read' }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || '读取失败');
+      bundle = {
+        instructions: data.bundle.instructions || '',
+        mcpServers: data.bundle.mcpServers || [],
+        skills: data.bundle.skills || [],
+      };
+      refs.instructions.value = bundle.instructions;
+      render();
+      setStatus('');
+    } catch (error) {
+      setStatus(error && error.message ? error.message : '读取失败', 'error');
+    }
+  };
+
+  const save = async () => {
+    if (busy) return;
+    try {
+      collect();
+    } catch (error) {
+      setStatus(error.message, 'error');
+      return;
+    }
+    busy = true;
+    refs.save.disabled = true;
+    setStatus('保存中…');
+    try {
+      const response = await fetch('/api/dshConfig', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'write', bundle }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || '保存失败');
+      setStatus('已保存，正在重启会话…', 'ok');
+      setTimeout(() => location.reload(), 1200);
+    } catch (error) {
+      setStatus(error && error.message ? error.message : '保存失败', 'error');
+      busy = false;
+      refs.save.disabled = false;
+    }
+  };
+
+  const close = () => {
+    if (!panel) return;
+    panel.hidden = true;
+    document.documentElement.style.overflow = '';
+    setStatus('');
+  };
+
+  const ensure = () => {
+    if (panel) return;
+    const host = document.createElement('div');
+    host.innerHTML = PANEL_HTML;
+    panel = host.firstElementChild;
+    document.body.append(panel);
+    refs = {
+      servers: panel.querySelector('#dsh-cfg-servers'),
+      skills: panel.querySelector('#dsh-cfg-skills'),
+      instructions: panel.querySelector('#dsh-cfg-instructions'),
+      status: panel.querySelector('#dsh-cfg-status'),
+      save: panel.querySelector('#dsh-cfg-save'),
+    };
+    panel.addEventListener('click', (event) => {
+      if (event.target.closest('[data-cfg-close]')) {
+        event.preventDefault();
+        close();
+        return;
+      }
+      const add = event.target.closest('[data-cfg-add]');
+      if (add) {
+        try { collect(); } catch (error) { setStatus(error.message, 'error'); return; }
+        if (add.dataset.cfgAdd === 'server') bundle.mcpServers.push({ id: '', name: '', url: '', headers: {}, enabled: true });
+        else bundle.skills.push({ name: '', description: '', body: '' });
+        render();
+        const container = add.dataset.cfgAdd === 'server' ? refs.servers : refs.skills;
+        const last = container.lastElementChild;
+        const input = last && last.querySelector('input');
+        if (input) input.focus();
+        return;
+      }
+      const remove = event.target.closest('[data-cfg-remove]');
+      if (remove) {
+        const item = remove.closest('[data-kind]');
+        const index = Number(item.dataset.index);
+        try { collect(); } catch (error) { setStatus(error.message, 'error'); return; }
+        if (item.dataset.kind === 'server') bundle.mcpServers.splice(index, 1);
+        else bundle.skills.splice(index, 1);
+        render();
+      }
+    });
+    panel.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') close();
+    });
+    refs.save.addEventListener('click', save);
+  };
+
+  const open = () => {
+    ensure();
+    panel.hidden = false;
+    document.documentElement.style.overflow = 'hidden';
+    void load();
+  };
+
+  window.dshMakersConfig = { open, close };
+})();
+</script>
+<!-- /dsh-makers-config-panel -->

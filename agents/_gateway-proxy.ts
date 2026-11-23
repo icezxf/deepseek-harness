@@ -43,14 +43,6 @@ async function proxyGatewayRequest(
     return
   }
 
-  const upstreamBaseUrl = envValue(context, 'AI_GATEWAY_BASE_URL').replace(/\/+$/, '')
-  const apiKey = envValue(context, 'AI_GATEWAY_API_KEY')
-  if (!upstreamBaseUrl || !apiKey) {
-    response.writeHead(500, { 'content-type': 'application/json' })
-    response.end(JSON.stringify({ error: 'AI Gateway environment is incomplete' }))
-    return
-  }
-
   const controller = new AbortController()
   response.on('close', () => {
     if (!response.writableEnded) controller.abort()
@@ -59,16 +51,35 @@ async function proxyGatewayRequest(
   if (typeof body.model !== 'string' || !body.model.trim()) {
     body.model = envValue(context, 'AI_GATEWAY_MODEL') || '@makers/deepseek-v4-flash'
   }
+
+  // 按模型 id 路由：cn: 前缀走用户自有 API（DEEPSEEK_*），其余走 EdgeOne 内置网关（AI_GATEWAY_*）
+  const isCustomModel = String(body.model).startsWith('cn:')
+  const upstreamBaseUrl = (
+    isCustomModel ? envValue(context, 'DEEPSEEK_BASE_URL') : envValue(context, 'AI_GATEWAY_BASE_URL')
+  ).replace(/\/+$/, '')
+  const apiKey = isCustomModel
+    ? envValue(context, 'DEEPSEEK_API_KEY')
+    : envValue(context, 'AI_GATEWAY_API_KEY')
+  if (!upstreamBaseUrl || !apiKey) {
+    response.writeHead(500, { 'content-type': 'application/json' })
+    response.end(JSON.stringify({ error: 'Model gateway environment is incomplete' }))
+    return
+  }
+
+  // 自有 API 是标准 OpenAI 兼容网关，不需要 EdgeOne 专属头
+  const requestHeaders: Record<string, string> = {
+    authorization: `Bearer ${apiKey}`,
+    'content-type': 'application/json',
+    accept: 'text/event-stream',
+  }
+  if (!isCustomModel) {
+    requestHeaders['x-gateway-quota-bypass'] = 'true'
+    requestHeaders['x-prompt-log'] = 'true'
+    requestHeaders['makers-conversation-id'] = conversationId
+  }
   const upstream = await fetch(`${upstreamBaseUrl}/chat/completions`, {
     method: 'POST',
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      'content-type': 'application/json',
-      accept: 'text/event-stream',
-      'x-gateway-quota-bypass': 'true',
-      'x-prompt-log': 'true',
-      'makers-conversation-id': conversationId,
-    },
+    headers: requestHeaders,
     body: JSON.stringify(body),
     signal: controller.signal,
   })

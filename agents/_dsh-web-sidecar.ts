@@ -171,6 +171,13 @@ const MAKERS_MODELS = [
   { id: '@makers/kimi-k2.6', name: 'Kimi-K2.6' },
 ] as const
 
+// 用户自有 OpenAI 兼容 API 的模型。以 cn: 开头，gateway 会按前缀路由到 DEEPSEEK_*。
+const CUSTOM_MODELS = [
+  { id: 'cn:hy4flash-free', name: 'Hy4 Flash (免费)' },
+  { id: 'cn:deepseek-v4.1-flash', name: 'DeepSeek-V4.1-Flash' },
+  { id: 'cn:hy4flash', name: 'Hy4 Flash' },
+] as const
+
 type MakersModel = {
   id: string
   name: string
@@ -228,6 +235,12 @@ export async function ensureMakersDefaultModelSettings(home: string, defaultMode
 
 function makersModelCatalog(defaultModel: string): MakersModel[] {
   const catalog: MakersModel[] = MAKERS_MODELS.map(model => ({ ...model }))
+  // 追加用户自有 API 的模型，使它们出现在同一个 edgeone-makers 分组的下拉里
+  for (const model of CUSTOM_MODELS) {
+    if (!catalog.some(item => item.id === model.id)) {
+      catalog.push({ ...model })
+    }
+  }
   if (!catalog.some(model => model.id === defaultModel)) {
     catalog.unshift({ id: defaultModel, name: defaultModel })
   }

@@ -209,15 +209,19 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
   scrim.addEventListener('click', close);
   const mount = () => {
     if (!document.getElementById('dsh-drawer-scrim')) document.body.appendChild(scrim);
-    const frame = document.querySelector('[class*="_frame"]');
-    if (!frame) return;
+    // frame 由插件异步渲染，脚本执行时可能还不存在，也可能被整体替换。
+    // 观察 body subtree 的属性/子节点变化，对 frame 延迟出现与替换都鲁棒。
     const sync = () => {
+      const frame = document.querySelector('[class*="_frame"]');
+      if (!frame) return;
       const expanded = !frame.hasAttribute('data-sidebar-collapsed');
       if (expanded) document.body.setAttribute('data-dsh-drawer', 'open');
       else document.body.removeAttribute('data-dsh-drawer');
     };
     sync();
-    new MutationObserver(sync).observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] });
+    new MutationObserver(sync).observe(document.body, {
+      attributes: true, attributeFilter: ['data-sidebar-collapsed'], subtree: true, childList: true,
+    });
   };
   if (document.body) mount();
   else document.addEventListener('DOMContentLoaded', mount);

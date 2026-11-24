@@ -11,10 +11,18 @@ import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
 export const DSH_CONFIG_METADATA_KEY = 'dshConfigBundle'
-/** 会话是否接管了全局基线：'session' 表示用会话自己的配置，'global' 表示继承环境变量。 */
+/** 会话是否接管了全局基线：'session' 表示用会话自己的配置，'global' 表示继承全局。 */
 export const DSH_CONFIG_MODE_METADATA_KEY = 'dshConfigMode'
 /** 部署级默认配置：一次设好，所有新会话自动继承，相当于 CF 那边写在 wrangler 里的常量。 */
 export const DSH_CONFIG_ENV_KEY = 'DSH_CONFIG_JSON'
+/** 全局配置的宿主会话：借一个固定 conversationId 当持久容器，比环境变量更容易改。 */
+export const GLOBAL_CONFIG_CONVERSATION_ID = 'dsh-global-config'
+
+/** 每个会话的 $DSH_HOME；sidecar 与 MCP 工具共用同一套路径规则。 */
+export function dshHomeFor(conversationId: string): string {
+  const safe = conversationId.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 96) || 'default'
+  return join('/tmp', 'dsh-makers-web', safe)
+}
 
 const MAX_INSTRUCTIONS_BYTES = 16 * 1024
 const MAX_SKILL_BYTES = 32 * 1024
@@ -205,8 +213,27 @@ async function getConversationRow(context: any, conversationId: string): Promise
 
 export type DshConfigSource = 'session' | 'global' | 'empty'
 
-/** 解析部署级基线（环境变量 DSH_CONFIG_JSON）；没配或写错都当作空基线，不影响启动。 */
-export function readGlobalConfigBundle(context: any): DshConfigBundle {
+function parseQuietly(raw: unknown, label: string): DshConfigBundle | undefined {
+  if (!raw) return undefined
+  try {
+    return normalizeConfigBundle(raw)
+  } catch (error) {
+    console.warn(`[dsh-web] ${label} config rejected:`, error)
+    return undefined
+  }
+}
+
+/**
+ * 解析全局配置。
+ *
+ * 优先读专用会话容器（`dsh-global-config` 的 metadata）——这条路能由对话里的工具直接写入；
+ * 没有就走环境变量 DSH_CONFIG_JSON，作为出厂默认。两处都坏掉就当空配置，不影响启动。
+ */
+export async function readGlobalConfigBundle(context: any): Promise<DshConfigBundle> {
+  const row = await getConversationRow(context, GLOBAL_CONFIG_CONVERSATION_ID)
+  const fromStore = parseQuietly(row?.metadata?.[DSH_CONFIG_METADATA_KEY], 'global')
+  if (fromStore) return fromStore
+
   const raw = context?.env?.[DSH_CONFIG_ENV_KEY]
   if (typeof raw !== 'string' || !raw.trim()) return emptyConfigBundle()
   let parsed: unknown
@@ -216,11 +243,24 @@ export function readGlobalConfigBundle(context: any): DshConfigBundle {
     console.warn('[dsh-web] DSH_CONFIG_JSON is not valid JSON:', error)
     return emptyConfigBundle()
   }
+  return parseQuietly(parsed, 'DSH_CONFIG_JSON') ?? emptyConfigBundle()
+}
+
+/** 写入全局配置（所有未接管的新会话都会继承）。 */
+export async function writeGlobalConfigBundle(context: any, bundle: DshConfigBundle): Promise<void> {
+  const store = context?.store
+  if (!store) throw new Error('会话存储不可用')
+  const metadata = { [DSH_CONFIG_METADATA_KEY]: bundle }
   try {
-    return normalizeConfigBundle(parsed)
-  } catch (error) {
-    console.warn('[dsh-web] DSH_CONFIG_JSON rejected:', error)
-    return emptyConfigBundle()
+    await store.updateConversation({ conversationId: GLOBAL_CONFIG_CONVERSATION_ID, metadata })
+  } catch {
+    try {
+      await store.updateConversation(GLOBAL_CONFIG_CONVERSATION_ID, { metadata })
+      return
+    } catch {
+      await ensureConversation(store, GLOBAL_CONFIG_CONVERSATION_ID)
+      await store.updateConversation({ conversationId: GLOBAL_CONFIG_CONVERSATION_ID, metadata })
+    }
   }
 }
 
@@ -234,7 +274,7 @@ export async function readResolvedConfig(
   context: any,
   conversationId: string,
 ): Promise<{ bundle: DshConfigBundle; source: DshConfigSource }> {
-  const baseline = readGlobalConfigBundle(context)
+  const baseline = await readGlobalConfigBundle(context)
   let stored: unknown
   let mode = ''
   try {
@@ -271,8 +311,45 @@ export async function readConfigBundle(context: any, conversationId: string): Pr
   return resolved.bundle
 }
 
-/** 放弃会话覆盖，重新继承全局基线。 */
-export async function resetConfigToGlobal(context: any, conversationId: string): Promise<void> {
+/** 把补丁合并到现有配置：提供哪个字段就整体替换哪个，未提供的保持不变。 */
+export function mergeConfigBundle(
+  current: DshConfigBundle,
+  patch: { instructions?: string; mcpServers?: unknown[]; skills?: unknown[] },
+): DshConfigBundle {
+  return normalizeConfigBundle({
+    instructions: patch.instructions === undefined ? current.instructions : patch.instructions,
+    mcpServers: patch.mcpServers === undefined ? current.mcpServers : patch.mcpServers,
+    skills: patch.skills === undefined ? current.skills : patch.skills,
+  })
+}
+
+/**
+ * 保存配置并立刻刷新 $DSH_HOME 下的文件。
+ *
+ * 全局规则每轮从 AGENTS.md 注入，所以写文件当轮就能生效；
+ * 技能与 MCP 只在 sidecar 启动时装载，需要新会话。
+ */
+export async function applyConfigBundle(
+  context: any,
+  conversationId: string,
+  bundle: DshConfigBundle,
+  scope: 'session' | 'global',
+): Promise<void> {
+  if (scope === 'global') {
+    await writeGlobalConfigBundle(context, bundle)
+  } else {
+    await saveConfigBundle(context, conversationId, bundle)
+  }
+  const home = dshHomeFor(conversationId)
+  const row = await getConversationRow(context, conversationId)
+  const hasSessionOverride = Boolean(row?.metadata?.[DSH_CONFIG_METADATA_KEY])
+    && row?.metadata?.[DSH_CONFIG_MODE_METADATA_KEY] !== 'global'
+  if (scope === 'session' || !hasSessionOverride) {
+    await writeConfigFiles(home, bundle)
+  }
+}
+
+/** 放弃会话覆盖，重新继承全局配置。 */export async function resetConfigToGlobal(context: any, conversationId: string): Promise<void> {
   const store = context?.store
   if (!store) throw new Error('会话存储不可用')
   const metadata = { [DSH_CONFIG_MODE_METADATA_KEY]: 'global', [DSH_CONFIG_METADATA_KEY]: null }

@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:net'
 import { dirname, join } from 'node:path'
-import { readConfigBundle, writeConfigFiles, type DshMcpServerConfig } from './_dsh-config.ts'
+import { dshHomeFor, readConfigBundle, writeConfigFiles, type DshMcpServerConfig } from './_dsh-config.ts'
 import { startLocalGatewayProxy, type LocalGatewayProxy } from './_gateway-proxy.ts'
 import { makersMcpPermissionSource } from './_makers-mcp-permission.mjs'
 import { startLocalMcpBridge, type LocalMcpBridge } from './_mcp-bridge.ts'
@@ -28,13 +28,7 @@ const DSH_SETTINGS_FILE = 'settings.yaml'
 const DSH_SETTINGS_METADATA_KEY = 'dshSettingsYaml'
 const DSH_SETTINGS_MAX_BYTES = 256 * 1024
 
-function safeSegment(value: string): string {
-  return value.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 96) || 'default'
-}
-
-export function dshHomeFor(conversationId: string): string {
-  return join('/tmp', 'dsh-makers-web', safeSegment(conversationId))
-}
+export { dshHomeFor } from './_dsh-config.ts'
 
 function isMissingConversation(error: unknown): boolean {
   const code = error && typeof error === 'object' && 'code' in error
@@ -331,7 +325,7 @@ async function writeProfilePatch(
     "  name: '@deepseek-ai/dsh-persona'",
     '  config:',
     '    text: >-',
-    '      You are a coding agent running on EdgeOne Makers. Use the mcp__edgeone__ tools for all file, command, and preview work. Never use local host filesystem or shell tools. Every Makers tool stays available. Permission modes only decide whether a call runs immediately or asks the user: Read Only auto-allows list and read; Workspace Write also auto-allows writes; Full access auto-allows commands and preview. If a tool needs a wider mode, call it normally — the user will be asked to approve. Inspect the workspace before editing, verify changes, and publish a preview when the project supports one.',
+    '      You are a coding agent running on EdgeOne Makers. Use the mcp__edgeone__ tools for all file, command, and preview work. Never use local host filesystem or shell tools. When the user asks you to remember a rule, add a skill, or connect an MCP server, call dsh_config_read and then dsh_config_write instead of editing AGENTS.md or skills/ by hand. Every Makers tool stays available. Permission modes only decide whether a call runs immediately or asks the user: Read Only auto-allows list and read; Workspace Write also auto-allows writes; Full access auto-allows commands and preview. If a tool needs a wider mode, call it normally — the user will be asked to approve. Inspect the workspace before editing, verify changes, and publish a preview when the project supports one.',
     '',
     '- id: makers-mcp-permission',
     '  name: ./makers-mcp-permission.mjs',

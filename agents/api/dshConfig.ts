@@ -30,7 +30,7 @@ export async function onRequest(context: any): Promise<Response> {
 
   if (action === 'read') {
     const resolved = await readResolvedConfig(context, conversationId)
-    const baseline = readGlobalConfigBundle(context)
+    const baseline = await readGlobalConfigBundle(context)
     return json({
       ok: true,
       bundle: resolved.bundle,

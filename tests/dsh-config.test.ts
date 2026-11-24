@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import {
   DSH_CONFIG_METADATA_KEY,
+  mergeConfigBundle,
   normalizeConfigBundle,
   readConfigBundle,
   readGlobalConfigBundle,
@@ -13,6 +14,7 @@ import {
   saveConfigBundle,
   skillMarkdown,
   writeConfigFiles,
+  writeGlobalConfigBundle,
 } from '../agents/_dsh-config.ts'
 
 function createStore(conversations = new Map<string, { metadata: Record<string, unknown> }>()) {
@@ -34,6 +36,11 @@ function createStore(conversations = new Map<string, { metadata: Record<string, 
       if (!row) throw Object.assign(new Error('Conversation not found'), { code: 'MemoryNotFoundError' })
       row.metadata = { ...row.metadata, ...metadata }
       return row
+    },
+    async appendMessage(payload: { conversationId: string }) {
+      if (!conversations.has(payload.conversationId)) {
+        conversations.set(payload.conversationId, { metadata: {} })
+      }
     },
   }
 }
@@ -144,20 +151,53 @@ test('saveConfigBundle bootstraps a conversation that has no messages yet', asyn
   assert.equal(conversations.get('conv-new')?.metadata.dshConfigBundle ? 'ok' : '', 'ok')
 })
 
-test('readGlobalConfigBundle parses DSH_CONFIG_JSON and ignores broken values', () => {
+test('readGlobalConfigBundle parses DSH_CONFIG_JSON and ignores broken values', async () => {
   const env = {
     DSH_CONFIG_JSON: JSON.stringify({
       instructions: '部署级规则',
       mcpServers: [{ name: 'global-mcp', url: 'https://mcp.example.com/mcp' }],
     }),
   }
-  const baseline = readGlobalConfigBundle({ env })
+  const baseline = await readGlobalConfigBundle({ env })
   assert.equal(baseline.instructions, '部署级规则')
   assert.equal(baseline.mcpServers[0]?.name, 'global-mcp')
 
-  assert.deepEqual(readGlobalConfigBundle({ env: { DSH_CONFIG_JSON: '{not json' } }).mcpServers, [])
-  assert.deepEqual(readGlobalConfigBundle({ env: { DSH_CONFIG_JSON: '{"mcpServers":[{"name":"X","url":"ftp://a"}]}' } }).mcpServers, [])
-  assert.deepEqual(readGlobalConfigBundle({}).mcpServers, [])
+  assert.deepEqual((await readGlobalConfigBundle({ env: { DSH_CONFIG_JSON: '{not json' } })).mcpServers, [])
+  assert.deepEqual((await readGlobalConfigBundle({ env: { DSH_CONFIG_JSON: '{"mcpServers":[{"name":"X","url":"ftp://a"}]}' } })).mcpServers, [])
+  assert.deepEqual((await readGlobalConfigBundle({})).mcpServers, [])
+})
+
+test('the global config container wins over the environment baseline', async () => {
+  const store = createStore(new Map())
+  const context = { store, env: { DSH_CONFIG_JSON: JSON.stringify({ instructions: '环境变量' }) } }
+  await writeGlobalConfigBundle(context, normalizeConfigBundle({
+    instructions: '全局容器',
+    skills: [{ name: 'global-skill', description: 'globally available', body: '# hi' }],
+  }))
+
+  const baseline = await readGlobalConfigBundle(context)
+  assert.equal(baseline.instructions, '全局容器')
+  assert.equal(baseline.skills[0]?.name, 'global-skill')
+
+  const inherited = await readResolvedConfig(context, 'conv-new')
+  assert.equal(inherited.source, 'global')
+  assert.equal(inherited.bundle.instructions, '全局容器')
+})
+
+test('mergeConfigBundle only replaces the fields it receives', () => {
+  const current = normalizeConfigBundle({
+    instructions: '旧规则',
+    mcpServers: [{ name: 'keep', url: 'https://keep.dev/mcp' }],
+    skills: [{ name: 'keep-skill', description: 'd', body: 'b' }],
+  })
+  const next = mergeConfigBundle(current, { instructions: '新规则' })
+  assert.equal(next.instructions, '新规则')
+  assert.equal(next.mcpServers[0]?.name, 'keep')
+  assert.equal(next.skills[0]?.name, 'keep-skill')
+
+  const replaced = mergeConfigBundle(current, { skills: [] })
+  assert.equal(replaced.instructions, '旧规则')
+  assert.deepEqual(replaced.skills, [])
 })
 
 test('readResolvedConfig prefers the session bundle and falls back to the global baseline', async () => {

@@ -11,6 +11,12 @@ import {
   workspaceRoot,
   writeWorkspaceFile,
 } from './_workspace.ts'
+import {
+  applyConfigBundle,
+  mergeConfigBundle,
+  readGlobalConfigBundle,
+  readResolvedConfig,
+} from './_dsh-config.ts'
 
 export {
   ALL_MAKERS_TOOLS,
@@ -166,6 +172,91 @@ async function createMcpServer(context: any, conversationId: string): Promise<Mc
       return { content: [{ type: 'text', text: JSON.stringify(await publishWorkspacePreview(context, conversationId)) }] }
     } catch (error) {
       return { content: [{ type: 'text', text: error instanceof Error ? error.message : String(error) }], isError: true }
+    }
+  })
+
+  register('dsh_config_read', {
+    description: 'Read the runtime configuration currently in effect for this session: global instructions (AGENTS.md), MCP servers, and skills, plus whether it comes from this session or the global baseline. Call this before dsh_config_write so you do not drop existing entries.',
+    inputSchema: {},
+  }, async () => {
+    const resolved = await readResolvedConfig(context, conversationId)
+    return {
+      content: [{
+        type: 'text',
+        text: JSON.stringify({
+          ok: true,
+          source: resolved.source,
+          instructions: resolved.bundle.instructions,
+          mcpServers: resolved.bundle.mcpServers,
+          skills: resolved.bundle.skills.map(skill => ({
+            name: skill.name,
+            description: skill.description,
+            body: skill.body.length > 4000 ? `${skill.body.slice(0, 4000)}\n…（已截断，原文 ${String(skill.body.length)} 字符）` : skill.body,
+          })),
+        }, null, 2),
+      }],
+    }
+  })
+
+  register('dsh_config_write', {
+    description: 'Update the runtime configuration: global rules (AGENTS.md), MCP servers, or skills. Any field you pass replaces that entire field; omitted fields stay unchanged. scope="session" (default) only affects this conversation; scope="global" becomes the default for every new session. Global rules take effect right after this call, skills and MCP servers need a new session. Read first with dsh_config_read.',
+    inputSchema: {
+      scope: z.enum(['session', 'global']).optional(),
+      instructions: z.string().optional(),
+      mcpServers: z.array(z.object({
+        name: z.string().describe('kebab-case name, e.g. context7'),
+        url: z.string().describe('Streamable HTTP endpoint, http(s) only'),
+        headers: z.record(z.string()).optional(),
+        enabled: z.boolean().optional(),
+      })).optional(),
+      skills: z.array(z.object({
+        name: z.string().describe('kebab-case name'),
+        description: z.string().describe('one line: when should this skill be used'),
+        body: z.string().optional().describe('Markdown body of SKILL.md'),
+      })).optional(),
+    },
+  }, async (args) => {
+    const scope = args.scope === 'global' ? 'global' : 'session'
+    try {
+      const base = scope === 'global'
+        ? await readGlobalConfigBundle(context)
+        : (await readResolvedConfig(context, conversationId)).bundle
+      const next = mergeConfigBundle(base, {
+        instructions: args.instructions,
+        mcpServers: args.mcpServers,
+        skills: args.skills,
+      })
+      await applyConfigBundle(context, conversationId, next, scope)
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            ok: true,
+            scope,
+            savedTo: scope === 'global' ? '全局配置：所有未接管的新会话都会继承' : '当前会话',
+            effect: {
+              instructions: '本轮之后立即生效',
+              mcpServers: '需要新会话（sidecar 重启）',
+              skills: '需要新会话（sidecar 重启）',
+            },
+            counts: {
+              instructions: next.instructions.trim().length,
+              mcpServers: next.mcpServers.length,
+              skills: next.skills.length,
+            },
+            summary: [
+              next.instructions.trim() ? `全局规则 ${String(next.instructions.trim().length)} 字` : '未设置全局规则',
+              `${String(next.mcpServers.length)} 个 MCP 服务器`,
+              `${String(next.skills.length)} 个技能`,
+            ].join(' · '),
+          }, null, 2),
+        }],
+      }
+    } catch (error) {
+      return {
+        content: [{ type: 'text', text: `保存配置失败：${error instanceof Error ? error.message : String(error)}` }],
+        isError: true,
+      }
     }
   })
 

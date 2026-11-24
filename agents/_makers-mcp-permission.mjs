@@ -15,18 +15,24 @@ export const ALL_MAKERS_TOOLS = Object.freeze([
   'publish_preview',
   'sandbox_probe',
   'sandbox_wait',
+  'dsh_config_read',
+  'dsh_config_write',
 ])
 
 const AUTO_ALLOW = Object.freeze({
-  'read-only': Object.freeze(['makers_context_probe', 'workspace_list_files', 'workspace_read_file']),
+  'read-only': Object.freeze(['makers_context_probe', 'workspace_list_files', 'workspace_read_file', 'dsh_config_read']),
   'workspace-write': Object.freeze([
     'makers_context_probe',
     'workspace_list_files',
     'workspace_read_file',
     'workspace_write_file',
+    'dsh_config_read',
   ]),
   'danger-full-access': ALL_MAKERS_TOOLS,
 })
+
+/** 改写运行配置会持久化到会话/全局，任何权限模式下都要单独确认。 */
+const ALWAYS_ASK = Object.freeze(['dsh_config_write'])
 
 export function isMakersPermissionMode(value) {
   return value === 'read-only' || value === 'workspace-write' || value === 'danger-full-access'
@@ -41,7 +47,7 @@ export function makersToolAllowed(mode, tool) {
 }
 
 export function makersRequiredMode(tool) {
-  return tool === 'workspace_write_file' ? 'workspace-write' : 'danger-full-access'
+  return tool === 'workspace_write_file' || tool === 'dsh_config_write' ? 'workspace-write' : 'danger-full-access'
 }
 
 export function makersRequiredModeLabel(tool) {
@@ -49,10 +55,14 @@ export function makersRequiredModeLabel(tool) {
 }
 
 export function makersToolGate(mode, tool) {
+  if (ALWAYS_ASK.includes(tool)) return 'ask'
   return makersToolAllowed(mode, tool) ? 'allow' : 'ask'
 }
 
 export function makersAskReason(mode, tool) {
+  if (tool === 'dsh_config_write') {
+    return `The ${tool} tool will rewrite your saved rules / MCP servers / skills and survives restarts. Allow this one call?`
+  }
   return `The ${tool} tool needs ${makersRequiredModeLabel(tool)} on EdgeOne Makers. Current permission is ${mode}. Allow this one call?`
 }
 
@@ -82,6 +92,7 @@ export function makersMcpPermissionSource() {
     `export const DEFAULT_MAKERS_PERMISSION = ${JSON.stringify(DEFAULT_MAKERS_PERMISSION)}`,
     `export const ALL_MAKERS_TOOLS = Object.freeze(${JSON.stringify(ALL_MAKERS_TOOLS)})`,
     `const AUTO_ALLOW = Object.freeze(${JSON.stringify(AUTO_ALLOW)})`,
+    `const ALWAYS_ASK = Object.freeze(${JSON.stringify(ALWAYS_ASK)})`,
   ]
   const functions = [
     isMakersPermissionMode,

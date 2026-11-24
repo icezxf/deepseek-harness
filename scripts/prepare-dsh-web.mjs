@@ -1332,12 +1332,26 @@ function makersBootstrap(manifest) {
 </style><script>
 window.__DSH_BOOT__ = ${serialized};
 (() => {
+  // 多端同步：所有设备默认收敛到同一个共享会话 ID，避免每台设备首次打开
+  // 各自生成随机 UUID，导致手机/电脑落到不同 sidecar、看不到彼此的对话。
+  // 需要互相隔离的独立会话可用 URL 参数 ?dsh_sid=my-room 指定。
   const key = 'dsh-makers-web-conversation-id';
-  let conversationId = localStorage.getItem(key);
-  if (!conversationId) {
-    conversationId = crypto.randomUUID();
-    localStorage.setItem(key, conversationId);
+  const DEFAULT_SID = 'dsh-shared';
+  const params = new URLSearchParams(location.search);
+  const fromUrl = params.get('dsh_sid');
+  const validSid = (v) => typeof v === 'string' && /^[a-zA-Z0-9_-]{1,64}$/.test(v) && v.indexOf('dsh-global') !== 0;
+  let conversationId;
+  if (validSid(fromUrl)) {
+    conversationId = fromUrl;
+  } else {
+    const saved = localStorage.getItem(key);
+    // 忽略旧的随机 UUID（8-4-4-4-12 形态），它正是各端不同步的根源；
+    // 保留用户此前通过 URL 显式选择过的自定义会话名。
+    conversationId = (saved && !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-/.test(saved) && validSid(saved))
+      ? saved
+      : DEFAULT_SID;
   }
+  localStorage.setItem(key, conversationId);
   window.__DSH_MAKERS_CONVERSATION_ID__ = conversationId;
   const nativeFetch = window.fetch.bind(window);
   window.fetch = (input, init = {}) => {

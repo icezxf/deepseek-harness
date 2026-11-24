@@ -7,15 +7,135 @@
 .dsh-makers-locked{opacity:.45;cursor:not-allowed}
 #dsh-makers-hover-tip{position:fixed;z-index:2147483647;pointer-events:none;background:var(--dsw-alias-label-primary,#1a1a1a);color:var(--dsw-alias-bg-layer-3,#fff);white-space:nowrap;border-radius:6px;padding:4px 8px;font-size:11px;line-height:17px;font-weight:400;max-width:min(320px,calc(100vw - 16px));box-shadow:0 4px 12px rgba(0,0,0,.18)}
 #dsh-makers-hover-tip[hidden]{display:none!important}
+/* ---- 移动端适配（窄屏 ≤700px）----
+   1) 修复输入框底部工具栏文字重叠：窄屏下 composer 的 tools 容器被 flex
+      压成 0 宽，但 workspace 模式选择器文字 overflow:visible 溢出，正好叠在
+      模型选择器上（"Workspace Write" 与 "DeepSeek-V4-Flash Default" 叠印）。
+      处理：隐藏 workspace 模式选择器（默认 Write 仍生效），模型选择器独占。
+   2) 侧边栏顶部化：折叠 rail 原本是占 56px 宽的左侧竖条，浪费窄屏横向空间。
+      处理：把折叠态 rail 改为 52px 高的顶部横条（logo/新建/搜索在左，设置
+      在右），内容区下移并占满整宽；展开态抽屉浮层覆盖内容、不再挤压变形。
+      作用域严格限定 data-sidebar-collapsed，避免影响桌面端与设置页。 */
+@media (max-width:700px){
+  [class*="_row"]:has([class*="_tools"]) [class*="_modes"]{display:none!important}
+  [class*="_row"]:has([class*="_tools"]){gap:8px!important}
+  [class*="_row"]:has([class*="_tools"]) [class*="_trailing"]{min-width:0!important;flex:1 1 auto!important}
+  [class*="_headline"]{font-size:20px!important;column-gap:6px!important}
+
+  /* 2a. 折叠态：rail 变顶部横条，内容区下移占满宽度 */
+  [class*="_frame"][data-sidebar-collapsed="true"]{
+    grid-template-columns:minmax(0,1fr)!important;
+    grid-template-rows:52px minmax(0,1fr)!important;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] > [class*="_sidebarCol"]{
+    grid-column:1!important;grid-row:1!important;
+    width:100%!important;height:52px!important;
+    border-bottom:1px solid rgba(0,0,0,.06);z-index:10;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] > [class*="_centerCol"]{
+    grid-column:1!important;grid-row:2!important;
+    width:100%!important;min-height:0!important;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] > [class*="_detailsCol"]{display:none!important}
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_root"][class*="_collapsed"]{
+    flex-direction:row!important;align-items:center!important;justify-content:flex-start!important;
+    width:100%!important;height:52px!important;padding:0 12px!important;box-sizing:border-box!important;gap:6px!important;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_logoRow"],
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_newSession"]{flex:0 0 auto!important;height:40px!important}
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_regionArea"]{
+    flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;height:40px!important;width:auto!important;
+  }
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_root"][class*="_rail"]{flex-direction:row!important;height:40px!important;width:auto!important}
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_listArea"]{display:none!important}
+  [class*="_frame"][data-sidebar-collapsed="true"] [class*="_footArea"]{
+    flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;height:40px!important;margin-left:auto!important;
+  }
+
+  /* 2b. 展开态：data-sidebar-collapsed 属性消失，抽屉浮层覆盖内容，右侧不再被挤压变形 */
+  [class*="_frame"]:not([data-sidebar-collapsed]){grid-template-columns:minmax(0,1fr)!important}
+  [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"]{
+    position:absolute!important;left:0!important;top:0!important;z-index:60!important;
+    width:min(300px,84vw)!important;height:100%!important;box-shadow:8px 0 28px rgba(0,0,0,.12)!important;
+  }
+  [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_centerCol"]{grid-column:1!important;width:100%!important}
+
+  /* 3. 右上角的 EdgeOne Makers 快捷入口（了解更多 / GitHub 源码 / 模版部署）
+        原本是内容区顶部一条 50px 高的独立横条，手机上白占一行；
+        改为并入顶部导航条：落在搜索按钮右侧、设置按钮左侧。
+        这些节点有固定 id（#dsh-makers-chrome / -powered / -actions），
+        不是哈希类名，官方前端升级也不会失效。 */
+  #dsh-makers-chrome{
+    position:fixed!important;top:0!important;left:0!important;right:0!important;
+    width:auto!important;height:53px!important;margin:0!important;padding:0!important;
+    align-items:center!important;justify-content:flex-end!important;gap:2px!important;
+    z-index:11!important;pointer-events:none!important;background:transparent!important;
+  }
+  #dsh-makers-chrome > *{pointer-events:auto!important}
+  /* 关键：官方前端在「进入会话」后会把 #dsh-makers-powered / #dsh-makers-actions
+     从顶栏容器搬进会话头部 .wSkVaW_titleRow，和 Session log 并排。因此不能只
+     定位父容器（会话态它是空的），必须把两个子元素自身 fixed 到顶栏；用
+     right 定位，360/390 宽都能贴着设置齿轮左侧，不会被挤压或盖住齿轮。 */
+  #dsh-makers-powered{
+    position:fixed!important;top:11px!important;left:auto!important;right:147px!important;
+    height:32px!important;padding:0!important;margin:0!important;
+    flex:0 0 auto!important;width:auto!important;max-width:none!important;overflow:visible!important;
+    z-index:11!important;
+    /* 会话态官方加 data-docked="true" 配 translate(-50%,-50%)，会把 fixed 元素拽偏 */
+    transform:none!important;
+  }
+  .dsh-makers-powered-label,.dsh-makers-powered-divider{display:none!important}
+  .dsh-makers-powered-more{
+    height:32px!important;padding:0 2px 0 6px!important;gap:1px!important;
+    flex:0 0 auto!important;white-space:nowrap!important;
+  }
+  .dsh-makers-powered-more-label{font-size:12px!important;line-height:1!important;white-space:nowrap!important}
+  #dsh-makers-actions{
+    position:fixed!important;top:11px!important;left:auto!important;right:48px!important;
+    height:32px!important;flex:0 0 auto!important;gap:0!important;margin:0!important;
+    z-index:11!important;
+  }
+  #dsh-makers-actions a,#dsh-makers-actions button{width:31px!important;height:32px!important;padding:0!important;justify-content:center!important;flex:0 0 auto!important}
+  #dsh-makers-actions svg{width:16px!important;height:16px!important}
+  .dsh-makers-action-label{display:none!important}
+  /* 抽屉展开时隐藏图标，避免浮在抽屉右侧残留的内容区上 */
+  [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-chrome,
+  [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-powered,
+  [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-actions{display:none!important}
+
+  /* 4. 虚拟键盘：不再猜"键盘是否弹出"——安卓 Chrome 上 innerHeight / visualViewport
+        / offsetTop 的组合跟预期不一致，差值判定会落空。改为让外壳高度始终等于
+        visualViewport 的真实可视高度：键盘弹起时它自己变小，输入框自然上移；
+        键盘收起时自己恢复。fixed 定位避免 iOS 把整页顶上去。 */
+  #dsh-app-frame{
+    position:fixed!important;top:0!important;left:0!important;right:0!important;
+    height:var(--dsh-vvh,100%)!important;
+  }
+  #dsh-makers-chrome{top:0!important}
+}
 </style><script>
 window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-api-gateway","url":"/plugins/@deepseek-ai/dsh-api-gateway/client.js?rev=cdcb59a584ac","rev":"cdcb59a584ac","inject":["@deepseek-ai/dsh-typert-registry","@deepseek-ai/dsh-client-connection"],"immediately":true},{"id":"@deepseek-ai/dsh-api-remotes","url":"/plugins/@deepseek-ai/dsh-api-remotes/client.js?rev=bcfb9edbb825","rev":"bcfb9edbb825","inject":["@deepseek-ai/dsh-api-gateway"],"immediately":true},{"id":"@deepseek-ai/dsh-client-connection","url":"/plugins/@deepseek-ai/dsh-client-connection/client.js?rev=8e2ea96f6eba","rev":"8e2ea96f6eba","inject":[],"immediately":true},{"id":"@deepseek-ai/dsh-client-locale","url":"/plugins/@deepseek-ai/dsh-client-locale/client.js?rev=64388660f485","rev":"64388660f485","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-modules","url":"/plugins/@deepseek-ai/dsh-client-modules/client.js?rev=48908e43ade0","rev":"48908e43ade0","inject":[],"immediately":true},{"id":"@deepseek-ai/dsh-client-runtime","url":"/plugins/@deepseek-ai/dsh-client-runtime/client.js?rev=c3303226b83b","rev":"c3303226b83b","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-typert-registry","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-ui-agent-preset","url":"/plugins/@deepseek-ai/dsh-client-ui-agent-preset/client.js?rev=4c5aee76b189","rev":"4c5aee76b189","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-commands","url":"/plugins/@deepseek-ai/dsh-client-ui-commands/client.js?rev=1270e347eb54","rev":"1270e347eb54","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-input-trigger","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-conversation","url":"/plugins/@deepseek-ai/dsh-client-ui-conversation/client.js?rev=506160553732","rev":"506160553732","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-layout"]},{"id":"@deepseek-ai/dsh-client-ui-deliverables","url":"/plugins/@deepseek-ai/dsh-client-ui-deliverables/client.js?rev=cdc1db73caa3","rev":"cdc1db73caa3","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-directory-picker-native","url":"/plugins/@deepseek-ai/dsh-client-ui-directory-picker-native/client.js?rev=5eacf9770d3e","rev":"5eacf9770d3e","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-workspace"]},{"id":"@deepseek-ai/dsh-client-ui-goal","url":"/plugins/@deepseek-ai/dsh-client-ui-goal/client.js?rev=9fbdab0a940d","rev":"9fbdab0a940d","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-input-trigger","url":"/plugins/@deepseek-ai/dsh-client-ui-input-trigger/client.js?rev=6a8392daa51e","rev":"6a8392daa51e","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-jobs","url":"/plugins/@deepseek-ai/dsh-client-ui-jobs/client.js?rev=8a3ae4417b51","rev":"8a3ae4417b51","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-primitives"]},{"id":"@deepseek-ai/dsh-client-ui-layout","url":"/plugins/@deepseek-ai/dsh-client-ui-layout/client.js?rev=8807ee56f56f","rev":"8807ee56f56f","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-theme"]},{"id":"@deepseek-ai/dsh-client-ui-message-feedback","url":"/plugins/@deepseek-ai/dsh-client-ui-message-feedback/client.js?rev=b71af11b9629","rev":"b71af11b9629","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-model-selection","url":"/plugins/@deepseek-ai/dsh-client-ui-model-selection/client.js?rev=1735eec16556","rev":"1735eec16556","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-permission-presets","url":"/plugins/@deepseek-ai/dsh-client-ui-permission-presets/client.js?rev=29cf8f5ab25f","rev":"29cf8f5ab25f","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-settings"]},{"id":"@deepseek-ai/dsh-client-ui-plan","url":"/plugins/@deepseek-ai/dsh-client-ui-plan/client.js?rev=814d7c319382","rev":"814d7c319382","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-settings","url":"/plugins/@deepseek-ai/dsh-client-ui-settings/client.js?rev=0995b95e08aa","rev":"0995b95e08aa","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-settings-general","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-general/client.js?rev=ffd5b564493b","rev":"ffd5b564493b","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-sidebar"]},{"id":"@deepseek-ai/dsh-client-ui-settings-models","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-models/client.js?rev=ebb781218b25","rev":"ebb781218b25","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-settings-plugin-inventory","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-plugin-inventory/client.js?rev=e5e5db1fdbb0","rev":"e5e5db1fdbb0","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-settings-plugins","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-plugins/client.js?rev=b8886bcccc1a","rev":"b8886bcccc1a","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-sidebar","url":"/plugins/@deepseek-ai/dsh-client-ui-sidebar/client.js?rev=b8f03724988d","rev":"b8f03724988d","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-layout","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-skill","url":"/plugins/@deepseek-ai/dsh-client-ui-skill/client.js?rev=ae2c4c8bb023","rev":"ae2c4c8bb023","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-tool","@deepseek-ai/dsh-client-ui-input-trigger","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-subagent","url":"/plugins/@deepseek-ai/dsh-client-ui-subagent/client.js?rev=4f840be262cb","rev":"4f840be262cb","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-primitives","@deepseek-ai/dsh-client-ui-input-trigger"]},{"id":"@deepseek-ai/dsh-client-ui-theme","url":"/plugins/@deepseek-ai/dsh-client-ui-theme/client.js?rev=240449265bbc","rev":"240449265bbc","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-ui-tool","url":"/plugins/@deepseek-ai/dsh-client-ui-tool/client.js?rev=854069ecfd30","rev":"854069ecfd30","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-trajectory","url":"/plugins/@deepseek-ai/dsh-client-ui-trajectory/client.js?rev=f46b23483530","rev":"f46b23483530","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-user-questions","url":"/plugins/@deepseek-ai/dsh-client-ui-user-questions/client.js?rev=d497c77f1a0e","rev":"d497c77f1a0e","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-workflow-run","url":"/plugins/@deepseek-ai/dsh-client-ui-workflow-run/client.js?rev=c8efd1f79632","rev":"c8efd1f79632","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-workspace","url":"/plugins/@deepseek-ai/dsh-client-ui-workspace/client.js?rev=d647145f6243","rev":"d647145f6243","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-sidebar"]},{"id":"@deepseek-ai/dsh-session-log-export","url":"/plugins/@deepseek-ai/dsh-session-log-export/client.js?rev=7c27787733da","rev":"7c27787733da","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-typert-registry","url":"/plugins/@deepseek-ai/dsh-typert-registry/client.js?rev=e316e02b09bd","rev":"e316e02b09bd","inject":[],"immediately":true}]};
 (() => {
+  // 多端同步：所有设备默认收敛到同一个共享会话 ID，避免每台设备首次打开
+  // 各自生成随机 UUID，导致手机/电脑落到不同 sidecar、看不到彼此的对话。
+  // 需要互相隔离的独立会话可用 URL 参数 ?dsh_sid=my-room 指定。
   const key = 'dsh-makers-web-conversation-id';
-  let conversationId = localStorage.getItem(key);
-  if (!conversationId) {
-    conversationId = crypto.randomUUID();
-    localStorage.setItem(key, conversationId);
+  const DEFAULT_SID = 'dsh-shared';
+  const params = new URLSearchParams(location.search);
+  const fromUrl = params.get('dsh_sid');
+  const validSid = (v) => typeof v === 'string' && /^[a-zA-Z0-9_-]{1,64}$/.test(v) && v.indexOf('dsh-global') !== 0;
+  let conversationId;
+  if (validSid(fromUrl)) {
+    conversationId = fromUrl;
+  } else {
+    const saved = localStorage.getItem(key);
+    // 忽略旧的随机 UUID（8-4-4-4-12 形态），它正是各端不同步的根源；
+    // 保留用户此前通过 URL 显式选择过的自定义会话名。
+    conversationId = (saved && !/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-/.test(saved) && validSid(saved))
+      ? saved
+      : DEFAULT_SID;
   }
+  localStorage.setItem(key, conversationId);
   window.__DSH_MAKERS_CONVERSATION_ID__ = conversationId;
   const nativeFetch = window.fetch.bind(window);
   window.fetch = (input, init = {}) => {
@@ -77,6 +197,58 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
   document.addEventListener('pointerdown', hide);
   window.addEventListener('scroll', hide, true);
 })();
+(() => {
+  /* 虚拟键盘跟随：不再判断"键盘是否弹出"（安卓 Chrome 上 innerHeight /
+     visualViewport / offsetTop 的组合会让差值判定落空）。直接给主外壳打一个
+     稳定的 id，并让它的高度永远等于 visualViewport 的实时可视高度：
+     键盘弹起 → vv.height 缩小 → 外壳变矮 → 输入框整体上移；
+     键盘收起 → vv.height 恢复 → 外壳回到全屏。安卓/ iOS 同一套逻辑。 */
+  const vv = window.visualViewport;
+  const root = document.documentElement;
+  const isTextEntry = (el) => !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable === true);
+  const markFrame = () => {
+    if (document.getElementById('dsh-app-frame')) return true;
+    for (const el of document.querySelectorAll('[class*="_frame"]')) {
+      if (el.querySelector('[class*="_centerCol"]')) {
+        el.id = 'dsh-app-frame';
+        return true;
+      }
+    }
+    return false;
+  };
+  markFrame();
+  document.addEventListener('DOMContentLoaded', markFrame);
+
+  if (!vv) return;
+  let scheduled = 0;
+  let lastHeight = -1;
+  const sync = () => {
+    scheduled = 0;
+    markFrame();
+    const viewHeight = Math.max(240, Math.round(vv.height));
+    const viewTop = Math.round(vv.offsetTop);
+    root.style.setProperty('--dsh-vvh', viewHeight + 'px');
+    root.style.setProperty('--dsh-vv-top', viewTop + 'px');
+    if (viewHeight !== lastHeight) {
+      lastHeight = viewHeight;
+      const scroller = document.querySelector('[class*="_scrollBody"]');
+      if (scroller && isTextEntry(document.activeElement)) scroller.scrollTop = scroller.scrollHeight;
+    }
+  };
+  const schedule = () => {
+    if (!scheduled) scheduled = requestAnimationFrame(sync);
+  };
+  vv.addEventListener('resize', schedule);
+  vv.addEventListener('scroll', schedule);
+  document.addEventListener('focusin', (event) => {
+    if (!isTextEntry(event.target)) return;
+    schedule();
+    setTimeout(schedule, 280);
+  });
+  document.addEventListener('focusout', () => setTimeout(schedule, 160));
+  window.addEventListener('orientationchange', () => setTimeout(schedule, 200));
+  schedule();
+})();
 </script>
 <!-- dsh-makers-actions -->
 <style>
@@ -87,9 +259,9 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
 #dsh-makers-chrome>*{pointer-events:auto}
 #dsh-makers-actions{position:relative;z-index:0;display:flex;align-items:center;gap:2px;margin:0;padding:0;border:none;background:transparent;font-family:inherit;flex:none}
 #dsh-makers-actions[data-docked=true]{position:static}
-#dsh-makers-actions a{display:inline-flex;align-items:center;gap:7px;height:34px;padding:0 12px;border:none;border-radius:9px;color:#57606a;background:transparent;text-decoration:none;font:inherit;font-size:14px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer;transition:background .16s,color .16s}
-#dsh-makers-actions a:hover{background:#f2f4f7;color:#1f2328}
-#dsh-makers-actions a:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#3964fe);outline-offset:1px}
+#dsh-makers-actions a,#dsh-makers-actions button{display:inline-flex;align-items:center;gap:7px;box-sizing:border-box;height:34px;padding:0 12px;border:none;border-radius:9px;color:#57606a;background:transparent;text-decoration:none;font:inherit;font-size:14px;font-weight:500;line-height:20px;white-space:nowrap;cursor:pointer;appearance:none;transition:background .16s,color .16s}
+#dsh-makers-actions a:hover,#dsh-makers-actions button:hover{background:#f2f4f7;color:#1f2328}
+#dsh-makers-actions a:focus-visible,#dsh-makers-actions button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary,#3964fe);outline-offset:1px}
 #dsh-makers-actions svg{flex:none}
 #dsh-makers-powered{position:absolute;top:10px;left:50%;z-index:0;display:inline-flex;align-items:center;gap:8px;height:28px;max-width:calc(100% - 2 * var(--dsh-makers-actions-width, 0px));padding:0 8px;border:none;border-radius:8px;background:transparent;color:#8b949e;font:inherit;font-size:12.5px;line-height:18px;white-space:nowrap;box-sizing:border-box;overflow:hidden;transform:translateX(-50%);pointer-events:auto}
 #dsh-makers-powered b{color:#5b6470;font-weight:600}
@@ -119,7 +291,7 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
 #dsh-makers-contact .dsh-makers-contact-later:hover{border-color:#6b7280;background:#f7f8fa}
 #dsh-makers-contact .dsh-makers-contact-go{border:none;background:#3b5cff;color:#fff;font-weight:600}
 #dsh-makers-contact .dsh-makers-contact-go:hover{background:#2f4fe6}
-@container dsh-center (max-width:880px){#dsh-makers-actions .dsh-makers-action-label,#dsh-makers-powered .dsh-makers-powered-label,#dsh-makers-powered .dsh-makers-powered-divider{display:none}#dsh-makers-actions a{padding:0 8px}#dsh-makers-powered{padding:0 6px;gap:0}}
+@container dsh-center (max-width:880px){#dsh-makers-actions .dsh-makers-action-label,#dsh-makers-powered .dsh-makers-powered-label,#dsh-makers-powered .dsh-makers-powered-divider{display:none}#dsh-makers-actions a,#dsh-makers-actions button{padding:0 8px}#dsh-makers-powered{padding:0 6px;gap:0}}
 @container dsh-center (max-width:360px){#dsh-makers-powered{visibility:hidden;pointer-events:none}}
 </style><script>
 (() => {
@@ -129,8 +301,8 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
   const deployHref = intl ? "https://edgeone.ai/makers/new" + deployParams : "https://console.cloud.tencent.com/edgeone/makers/new" + deployParams;
   const contactHref = intl ? "https://pages.edgeone.ai/contact?source=deepseek-harness" : "https://cloud.tencent.com/online-service?from=connect-us";
   const copy = {
-    zh: { github: "GitHub 源码", deploy: "模版部署", powered: "基于 <b>EdgeOne Makers Agents</b> 部署", more: "了解更多", poweredTitle: "集成到我的产品", title: "从 DeepSeek Harness 到你的云端 Agent", body: "DeepSeek Harness 已接入 EdgeOne Makers Agents。部署后，你可以自由扩展模型、工具、技能与界面，打造适用于 Vibe Coding、任务自动化和内容生产的云端 Agent，并将生成的应用与内容发布至全球边缘网络。Makers 提供 Agent 托管、安全沙箱与应用交付的一体化方案。", later: "以后再说", go: "联系我们" },
-    en: { github: "GitHub", deploy: "Deploy", powered: "Powered by <b>EdgeOne Makers Agents</b>", more: "Learn more", poweredTitle: "Integrate with my product", title: "From DeepSeek Harness to Your Cloud Agent", body: "DeepSeek Harness now runs on EdgeOne Makers Agents. After you deploy, you can extend models, tools, skills, and the UI to build a cloud Agent for Vibe Coding, task automation, and content production, then publish generated apps and content to the global edge network. Makers provides an integrated solution for Agent hosting, a secure sandbox, and app delivery.", later: "Maybe later", go: "Contact us" }
+    zh: { github: "GitHub 源码", deploy: "模版部署", powered: "基于 <b>EdgeOne Makers Agents</b> 部署", more: "了解更多", config: "运行配置", poweredTitle: "集成到我的产品", title: "从 DeepSeek Harness 到你的云端 Agent", body: "DeepSeek Harness 已接入 EdgeOne Makers Agents。部署后，你可以自由扩展模型、工具、技能与界面，打造适用于 Vibe Coding、任务自动化和内容生产的云端 Agent，并将生成的应用与内容发布至全球边缘网络。Makers 提供 Agent 托管、安全沙箱与应用交付的一体化方案。", later: "以后再说", go: "联系我们" },
+    en: { github: "GitHub", deploy: "Deploy", powered: "Powered by <b>EdgeOne Makers Agents</b>", more: "Learn more", config: "Config", poweredTitle: "Integrate with my product", title: "From DeepSeek Harness to Your Cloud Agent", body: "DeepSeek Harness now runs on EdgeOne Makers Agents. After you deploy, you can extend models, tools, skills, and the UI to build a cloud Agent for Vibe Coding, task automation, and content production, then publish generated apps and content to the global edge network. Makers provides an integrated solution for Agent hosting, a secure sandbox, and app delivery.", later: "Maybe later", go: "Contact us" }
   };
   const localeOf = () => {
     const lang = (document.documentElement.lang || "").toLowerCase();
@@ -141,6 +313,7 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
   const githubIcon = '<svg viewBox="0 0 16 16" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8"/></svg>';
   const deployIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 15c-1 2-1 4-1 4s2 0 4-1"/><path d="M9 18c-1.5-.6-2.4-1.5-3-3 3.2-7 7.6-9.5 14-9-.5 6.4-3 10.8-10 14z"/><path d="M13.5 10.5a1.5 1.5 0 1 0 2.1-2.1 1.5 1.5 0 0 0-2.1 2.1z"/></svg>';
   const moreIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  const configIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>';
   const bubbleIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
   const mount = () => {
     if (document.getElementById("dsh-makers-actions")) return;
@@ -157,7 +330,16 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
     deploy.target = "_blank";
     deploy.rel = "noopener noreferrer";
     deploy.innerHTML = deployIcon + '<span class="dsh-makers-action-label"></span>';
-    nav.append(github, deploy);
+    const config = document.createElement("button");
+    config.type = "button";
+    config.id = "dsh-makers-config";
+    config.innerHTML = configIcon + '<span class="dsh-makers-action-label"></span>';
+    config.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (window.dshMakersConfig) window.dshMakersConfig.open();
+    });
+    nav.append(github, deploy, config);
     const powered = document.createElement("div");
     powered.id = "dsh-makers-powered";
     powered.dataset.docked = "false";
@@ -261,6 +443,8 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
       deploy.href = deployHref;
       deploy.title = t.deploy;
       deploy.querySelector(".dsh-makers-action-label").textContent = t.deploy;
+      config.title = t.config;
+      config.querySelector(".dsh-makers-action-label").textContent = t.config;
       more.title = t.poweredTitle;
       more.querySelector(".dsh-makers-powered-more-label").textContent = t.more;
       powered.querySelector(".dsh-makers-powered-label").innerHTML = t.powered;
@@ -299,7 +483,335 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
 })();
 </script>
 <!-- /dsh-makers-actions -->
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- dsh-makers-config-panel：会话级运行配置（全局规则 / MCP / 技能） -->
+<style>
+#dsh-makers-config-panel{position:fixed;inset:0;z-index:2147483646;display:grid;place-items:center;box-sizing:border-box;padding:16px;font-family:system-ui,-apple-system,"Segoe UI","PingFang SC",sans-serif}
+#dsh-makers-config-panel[hidden]{display:none!important}
+#dsh-makers-config-panel .dsh-cfg-overlay{position:absolute;inset:0;background:rgba(15,17,23,.46);backdrop-filter:blur(2px)}
+#dsh-makers-config-panel .dsh-cfg-card{position:relative;z-index:1;display:flex;flex-direction:column;width:min(760px,100%);max-height:min(88vh,880px);overflow:hidden;border-radius:16px;background:#fff;color:#17181c;box-shadow:0 26px 70px rgba(17,18,22,.32)}
+#dsh-makers-config-panel header{position:relative;flex:none;padding:20px 24px 14px;border-bottom:1px solid #eef0f3}
+#dsh-makers-config-panel h2{margin:0;font-size:18px;font-weight:700;letter-spacing:-.2px}
+#dsh-makers-config-panel .dsh-cfg-sub{margin:6px 0 0;color:#6b7280;font-size:12.5px;line-height:1.6}
+#dsh-makers-config-panel .dsh-cfg-x{position:absolute;top:14px;right:16px;width:30px;height:30px;border:none;border-radius:8px;background:transparent;color:#6b7280;font-size:20px;line-height:1;cursor:pointer}
+#dsh-makers-config-panel .dsh-cfg-x:hover{background:#f2f4f7;color:#17181c}
+#dsh-makers-config-panel .dsh-cfg-body{flex:1 1 auto;overflow:auto;padding:16px 24px 8px}
+#dsh-makers-config-panel section{margin-bottom:20px}
+#dsh-makers-config-panel h3{margin:0 0 8px;font-size:13px;font-weight:600;color:#374151}
+#dsh-makers-config-panel h3 small{margin-left:6px;color:#9aa3af;font-size:11.5px;font-weight:400}
+#dsh-makers-config-panel textarea,#dsh-makers-config-panel input{box-sizing:border-box;width:100%;border:1px solid #d8dce3;border-radius:9px;background:#fff;color:#17181c;font:inherit;font-size:13px;line-height:1.6;padding:8px 10px;outline:none}
+#dsh-makers-config-panel textarea{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+#dsh-makers-config-panel textarea:focus,#dsh-makers-config-panel input:focus{border-color:#3b5cff;box-shadow:0 0 0 3px rgba(59,92,255,.12)}
+#dsh-makers-config-panel .dsh-cfg-list{display:flex;flex-direction:column;gap:10px}
+#dsh-makers-config-panel .dsh-cfg-item{border:1px solid #e8eaee;border-radius:11px;padding:10px 12px;background:#fcfcfd}
+#dsh-makers-config-panel .dsh-cfg-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+#dsh-makers-config-panel .dsh-cfg-row>*{min-width:0}
+#dsh-makers-config-panel .dsh-cfg-row label{display:inline-flex;align-items:center;gap:5px;flex:0 0 auto;color:#6b7280;font-size:12px;white-space:nowrap}
+#dsh-makers-config-panel .dsh-cfg-row input:not([type=checkbox]){flex:1 1 auto}
+#dsh-makers-config-panel .dsh-cfg-row input[type=checkbox]{width:auto;flex:none}
+#dsh-makers-config-panel .dsh-cfg-del{flex:none;border:1px solid #e4e7ec;border-radius:8px;background:#fff;color:#b42318;font-size:12px;height:30px;padding:0 10px;cursor:pointer}
+#dsh-makers-config-panel .dsh-cfg-del:hover{background:#fef3f2;border-color:#fda29b}
+#dsh-makers-config-panel .dsh-cfg-add{border:1px dashed #cfd4dc;border-radius:9px;background:#fff;color:#3b5cff;font-size:12.5px;font-weight:500;height:34px;padding:0 12px;cursor:pointer}
+#dsh-makers-config-panel .dsh-cfg-add:hover{background:#f5f7ff;border-color:#9db1ff}
+#dsh-makers-config-panel .dsh-cfg-empty{margin:0 0 8px;color:#9aa3af;font-size:12.5px}
+#dsh-makers-config-panel .dsh-cfg-source{display:flex;align-items:center;gap:7px;margin:10px 0 0;padding:7px 10px;border-radius:8px;background:#f2f5ff;color:#3449b8;font-size:12px;line-height:1.5}
+#dsh-makers-config-panel .dsh-cfg-source[data-tone=session]{background:#fff8e8;color:#8a5a00}
+#dsh-makers-config-panel .dsh-cfg-source[hidden]{display:none}
+#dsh-makers-config-panel .dsh-cfg-scope{display:flex;align-items:center;gap:6px;margin:10px 0 0;color:#4b5563;font-size:12.5px;cursor:pointer;user-select:none}
+#dsh-makers-config-panel .dsh-cfg-scope input{width:auto;flex:none;margin:0;accent-color:#3b5cff}
+#dsh-makers-config-panel .dsh-cfg-reset{border:1px solid #d6dae1;background:#fff;color:#57606a}
+#dsh-makers-config-panel .dsh-cfg-reset:hover{background:#f6f7f9;color:#17181c}
+#dsh-makers-config-panel .dsh-cfg-reset[hidden]{display:none}
+#dsh-makers-config-panel footer{flex:none;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 24px;border-top:1px solid #eef0f3;background:#fafbfc}
+#dsh-makers-config-panel #dsh-cfg-status{flex:1 1 auto;min-width:0;color:#6b7280;font-size:12.5px;line-height:1.5;overflow-wrap:anywhere}
+#dsh-makers-config-panel #dsh-cfg-status[data-tone=error]{color:#b42318}
+#dsh-makers-config-panel #dsh-cfg-status[data-tone=ok]{color:#067647}
+#dsh-makers-config-panel .dsh-cfg-actions{display:flex;gap:8px;flex:none}
+#dsh-makers-config-panel .dsh-cfg-actions button{height:36px;padding:0 16px;border-radius:9px;font-size:13px;font-weight:500;cursor:pointer}
+#dsh-makers-config-panel .dsh-cfg-cancel{border:1px solid #d6dae1;background:#fff;color:#17181c}
+#dsh-makers-config-panel .dsh-cfg-save{border:none;background:#3b5cff;color:#fff;font-weight:600}
+#dsh-makers-config-panel .dsh-cfg-save:disabled{opacity:.6;cursor:default}
+@media (max-width:640px){
+  #dsh-makers-config-panel{padding:0}
+  #dsh-makers-config-panel .dsh-cfg-card{width:100%;height:100%;max-height:none;border-radius:0}
+  #dsh-makers-config-panel header{padding:16px 16px 12px}
+  #dsh-makers-config-panel .dsh-cfg-body{padding:12px 16px 4px}
+  #dsh-makers-config-panel footer{flex-direction:column;align-items:stretch;gap:8px;padding:12px 16px}
+  #dsh-makers-config-panel #dsh-cfg-status:empty{display:none}
+  #dsh-makers-config-panel .dsh-cfg-actions{justify-content:flex-end}
+}
+</style>
+<script>
+(() => {
+  if (window.dshMakersConfig) return;
+  const PANEL_HTML = '<div id="dsh-makers-config-panel" hidden>'
+    + '<div class="dsh-cfg-overlay" data-cfg-close="1"></div>'
+    + '<div class="dsh-cfg-card" role="dialog" aria-modal="true" aria-labelledby="dsh-cfg-title">'
+    + '<header><h2 id="dsh-cfg-title">运行配置</h2>'
+    + '<p class="dsh-cfg-sub">改动默认只影响当前会话；勾选下面那项可写入全局。</p>'
+    + '<p class="dsh-cfg-source" id="dsh-cfg-source" hidden></p>'
+    + '<label class="dsh-cfg-scope"><input type="checkbox" id="dsh-cfg-global" />保存到全局，所有新会话都继承</label>'
+    + '<button type="button" class="dsh-cfg-x" data-cfg-close="1" aria-label="关闭">×</button></header>'
+    + '<div class="dsh-cfg-body">'
+    + '<section><h3>全局规则<small>写入 AGENTS.md，每次会话开始注入</small></h3>'
+    + '<textarea id="dsh-cfg-instructions" rows="5" placeholder="例如：所有回答使用中文；改动前先读文件；不要执行破坏性命令。"></textarea></section>'
+    + '<section><h3>MCP 服务器<small>Streamable HTTP，可带自定义请求头</small></h3>'
+    + '<div id="dsh-cfg-servers" class="dsh-cfg-list"></div>'
+    + '<button type="button" class="dsh-cfg-add" data-cfg-add="server">+ 添加 MCP 服务器</button></section>'
+    + '<section><h3>技能<small>写入 skills/&lt;name&gt;/SKILL.md</small></h3>'
+    + '<div id="dsh-cfg-skills" class="dsh-cfg-list"></div>'
+    + '<button type="button" class="dsh-cfg-add" data-cfg-add="skill">+ 添加技能</button></section>'
+    + '</div>'
+    + '<footer><span id="dsh-cfg-status"></span>'
+    + '<div class="dsh-cfg-actions">'
+    + '<button type="button" class="dsh-cfg-reset" id="dsh-cfg-reset" hidden>恢复全局</button>'
+    + '<button type="button" class="dsh-cfg-cancel" data-cfg-close="1">取消</button>'
+    + '<button type="button" class="dsh-cfg-save" id="dsh-cfg-save">保存并重启会话</button>'
+    + '</div></footer></div></div>';
+
+  let panel = null;
+  let refs = null;
+  let bundle = { instructions: '', mcpServers: [], skills: [] };
+  let busy = false;
+
+  const escapeHtml = (value) => String(value == null ? '' : value)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  const setStatus = (text, tone) => {
+    if (!refs) return;
+    refs.status.textContent = text || '';
+    if (tone) refs.status.dataset.tone = tone;
+    else delete refs.status.dataset.tone;
+  };
+
+  const renderSource = (source, hasGlobalBaseline) => {
+    if (!refs) return;
+    let text = '';
+    let tone = '';
+    if (source === 'session') {
+      text = '本会话已单独保存配置，不再跟随部署级更新。';
+      tone = 'session';
+    } else if (source === 'global') {
+      text = '正在继承全局配置（所有新会话共享），改动并保存后本会话将独立。';
+    } else if (hasGlobalBaseline) {
+      text = '全局配置为空，可直接在此添加。';
+    }
+    refs.source.textContent = text;
+    refs.source.hidden = !text;
+    if (tone) refs.source.dataset.tone = tone;
+    else delete refs.source.dataset.tone;
+    refs.reset.hidden = !(source === 'session' && hasGlobalBaseline);
+  };
+
+  const serverRow = (server, index) => `
+    <div class="dsh-cfg-item" data-kind="server" data-index="${index}">
+      <div class="dsh-cfg-row">
+        <input data-field="name" value="${escapeHtml(server.name)}" placeholder="名称，例如 context7" aria-label="MCP 名称" />
+        <label><input type="checkbox" data-field="enabled" ${server.enabled ? 'checked' : ''} />启用</label>
+        <button type="button" class="dsh-cfg-del" data-cfg-remove="server">删除</button>
+      </div>
+      <div class="dsh-cfg-row">
+        <input data-field="url" value="${escapeHtml(server.url)}" placeholder="https://example.com/mcp" aria-label="MCP 地址" />
+      </div>
+      <textarea data-field="headers" rows="2" placeholder='请求头 JSON，例如 {"Authorization":"Bearer xxx"}' aria-label="MCP 请求头">${escapeHtml(JSON.stringify(server.headers && Object.keys(server.headers).length ? server.headers : {}))}</textarea>
+    </div>`;
+
+  const skillRow = (skill, index) => `
+    <div class="dsh-cfg-item" data-kind="skill" data-index="${index}">
+      <div class="dsh-cfg-row">
+        <input data-field="name" value="${escapeHtml(skill.name)}" placeholder="名称，例如 pdf-report" aria-label="技能名称" />
+        <button type="button" class="dsh-cfg-del" data-cfg-remove="skill">删除</button>
+      </div>
+      <div class="dsh-cfg-row">
+        <input data-field="description" value="${escapeHtml(skill.description)}" placeholder="一句话说明何时使用（模型靠它决定是否加载）" aria-label="技能描述" />
+      </div>
+      <textarea data-field="body" rows="5" placeholder="技能正文（Markdown），会被写进 SKILL.md" aria-label="技能正文">${escapeHtml(skill.body)}</textarea>
+    </div>`;
+
+  const render = () => {
+    if (!refs) return;
+    refs.servers.innerHTML = bundle.mcpServers.length
+      ? bundle.mcpServers.map(serverRow).join('')
+      : '<p class="dsh-cfg-empty">还没有额外的 MCP 服务器，内置的 EdgeOne Makers 工具始终可用。</p>';
+    refs.skills.innerHTML = bundle.skills.length
+      ? bundle.skills.map(skillRow).join('')
+      : '<p class="dsh-cfg-empty">还没有技能。技能是可按需加载的 Markdown 说明文档。</p>';
+  };
+
+  const collect = () => {
+    bundle.instructions = refs.instructions.value;
+    bundle.mcpServers = [...refs.servers.querySelectorAll('[data-kind="server"]')].map((item) => {
+      let headers = {};
+      try {
+        const parsed = JSON.parse(item.querySelector('[data-field="headers"]').value || '{}');
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) headers = parsed;
+      } catch {
+        throw new Error('MCP 请求头需要是合法 JSON');
+      }
+      const name = item.querySelector('[data-field="name"]').value.trim();
+      return {
+        id: name,
+        name,
+        url: item.querySelector('[data-field="url"]').value.trim(),
+        headers,
+        enabled: item.querySelector('[data-field="enabled"]').checked,
+      };
+    });
+    bundle.skills = [...refs.skills.querySelectorAll('[data-kind="skill"]')].map((item) => ({
+      name: item.querySelector('[data-field="name"]').value.trim(),
+      description: item.querySelector('[data-field="description"]').value.trim(),
+      body: item.querySelector('[data-field="body"]').value,
+    }));
+  };
+
+  const load = async () => {
+    setStatus('读取配置…');
+    try {
+      const response = await fetch('/api/dshConfig', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'read' }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || '读取失败');
+      bundle = {
+        instructions: data.bundle.instructions || '',
+        mcpServers: data.bundle.mcpServers || [],
+        skills: data.bundle.skills || [],
+      };
+      refs.instructions.value = bundle.instructions;
+      render();
+      renderSource(data.source || 'empty', Boolean(data.hasGlobalBaseline));
+      setStatus('');
+    } catch (error) {
+      setStatus(error && error.message ? error.message : '读取失败', 'error');
+    }
+  };
+
+  const save = async () => {
+    if (busy) return;
+    try {
+      collect();
+    } catch (error) {
+      setStatus(error.message, 'error');
+      return;
+    }
+    busy = true;
+    refs.save.disabled = true;
+    setStatus('保存中…');
+    try {
+      const scope = refs.global.checked ? 'global' : 'session';
+      const response = await fetch('/api/dshConfig', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'write', bundle, scope }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || '保存失败');
+      setStatus(scope === 'global' ? '已保存到全局，所有新会话生效，正在重启…' : '已保存，正在重启会话…', 'ok');
+      setTimeout(() => location.reload(), 1200);
+    } catch (error) {
+      setStatus(error && error.message ? error.message : '保存失败', 'error');
+      busy = false;
+      refs.save.disabled = false;
+    }
+  };
+
+  const reset = async () => {
+    if (busy) return;
+    busy = true;
+    refs.save.disabled = true;
+    refs.reset.disabled = true;
+    setStatus('正在恢复全局配置…');
+    try {
+      const response = await fetch('/api/dshConfig', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'reset' }),
+      });
+      const data = await response.json();
+      if (!data.ok) throw new Error(data.error || '恢复失败');
+      setStatus('已恢复，正在重启会话…', 'ok');
+      setTimeout(() => location.reload(), 1200);
+    } catch (error) {
+      setStatus(error && error.message ? error.message : '恢复失败', 'error');
+      busy = false;
+      refs.save.disabled = false;
+      refs.reset.disabled = false;
+    }
+  };
+
+  const close = () => {
+    if (!panel) return;
+    panel.hidden = true;
+    document.documentElement.style.overflow = '';
+    setStatus('');
+  };
+
+  const ensure = () => {
+    if (panel) return;
+    const host = document.createElement('div');
+    host.innerHTML = PANEL_HTML;
+    panel = host.firstElementChild;
+    document.body.append(panel);
+    refs = {
+      servers: panel.querySelector('#dsh-cfg-servers'),
+      skills: panel.querySelector('#dsh-cfg-skills'),
+      instructions: panel.querySelector('#dsh-cfg-instructions'),
+      status: panel.querySelector('#dsh-cfg-status'),
+      source: panel.querySelector('#dsh-cfg-source'),
+      global: panel.querySelector('#dsh-cfg-global'),
+      save: panel.querySelector('#dsh-cfg-save'),
+      reset: panel.querySelector('#dsh-cfg-reset'),
+    };
+    panel.addEventListener('click', (event) => {
+      if (event.target.closest('[data-cfg-close]')) {
+        event.preventDefault();
+        close();
+        return;
+      }
+      const add = event.target.closest('[data-cfg-add]');
+      if (add) {
+        try { collect(); } catch (error) { setStatus(error.message, 'error'); return; }
+        if (add.dataset.cfgAdd === 'server') bundle.mcpServers.push({ id: '', name: '', url: '', headers: {}, enabled: true });
+        else bundle.skills.push({ name: '', description: '', body: '' });
+        render();
+        const container = add.dataset.cfgAdd === 'server' ? refs.servers : refs.skills;
+        const last = container.lastElementChild;
+        const input = last && last.querySelector('input');
+        if (input) input.focus();
+        return;
+      }
+      const remove = event.target.closest('[data-cfg-remove]');
+      if (remove) {
+        const item = remove.closest('[data-kind]');
+        const index = Number(item.dataset.index);
+        try { collect(); } catch (error) { setStatus(error.message, 'error'); return; }
+        if (item.dataset.kind === 'server') bundle.mcpServers.splice(index, 1);
+        else bundle.skills.splice(index, 1);
+        render();
+      }
+    });
+    panel.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') close();
+    });
+    refs.save.addEventListener('click', save);
+    refs.reset.addEventListener('click', reset);
+  };
+
+  const open = () => {
+    ensure();
+    panel.hidden = false;
+    document.documentElement.style.overflow = 'hidden';
+    void load();
+  };
+
+  window.dshMakersConfig = { open, close };
+})();
+</script>
+<!-- /dsh-makers-config-panel -->
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>DeepSeek Harness</title>

@@ -31,6 +31,8 @@ test('every Makers tool stays visible; permission only decides allow vs ask', ()
     'publish_preview',
     'sandbox_probe',
     'sandbox_wait',
+    'dsh_config_read',
+    'dsh_config_write',
   ])
   assert.equal(makersToolGate('read-only', 'workspace_read_file'), 'allow')
   assert.equal(makersToolGate('read-only', 'workspace_write_file'), 'ask')
@@ -47,6 +49,7 @@ test('workspace-write auto-allows writes and asks for commands and preview', () 
     'workspace_list_files',
     'workspace_read_file',
     'workspace_write_file',
+    'dsh_config_read',
   ])
 })
 

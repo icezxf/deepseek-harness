@@ -22,6 +22,18 @@ test('Makers connection bundle uses SSE and injects conversation routing', async
   assert.match(html, /makers-conversation-id/)
 })
 
+test('all devices share one stable conversation id so chats sync across browsers', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8')
+  // 默认共享会话，不再每台设备各自生成随机 UUID
+  assert.match(html, /const DEFAULT_SID = ['"]dsh-shared['"]/)
+  assert.doesNotMatch(html, /conversationId = crypto\.randomUUID\(\)/)
+  // 旧随机 UUID 被识别并忽略
+  assert.match(html, /\[0-9a-fA-F\]\{8\}-\[0-9a-fA-F\]\{4\}/)
+  // 支持用 URL 参数开互相隔离的独立会话
+  assert.match(html, /params\.get\(['"]dsh_sid['"]\)/)
+  assert.match(html, /makers-conversation-id/)
+})
+
 test('built-in agent presets are locked in the prepared Web UI', async () => {
   const source = await readFile(
     new URL('../public/plugins/@deepseek-ai/dsh-client-ui-agent-preset/client.js', import.meta.url),

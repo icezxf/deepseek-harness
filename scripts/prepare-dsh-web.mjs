@@ -1331,14 +1331,6 @@ function makersBootstrap(manifest) {
   [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-powered,
   [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-actions{display:none!important}
 
-  /* 4. 虚拟键盘：不再猜"键盘是否弹出"——安卓 Chrome 上 innerHeight / visualViewport
-        / offsetTop 的组合跟预期不一致，差值判定会落空。改为让外壳高度始终等于
-        visualViewport 的真实可视高度：键盘弹起时它自己变小，输入框自然上移；
-        键盘收起时自己恢复。fixed 定位避免 iOS 把整页顶上去。 */
-  #dsh-app-frame{
-    position:fixed!important;top:0!important;left:0!important;right:0!important;
-    height:var(--dsh-vvh,100%)!important;
-  }
   #dsh-makers-chrome{top:0!important}
 
   /* 5. 设置面板：官方用 flex row（左导航188px + 右内容154px），窄屏下右栏被
@@ -1372,6 +1364,29 @@ function makersBootstrap(manifest) {
     border-radius:12px!important;box-shadow:0 12px 36px rgba(0,0,0,.18)!important;
   }
   [class*="_7KE1Ra_menu"] [role="menuitem"]{min-height:44px!important}
+}
+
+/* 7. 虚拟键盘跟随：外壳高度永远等于 visualViewport 实时高度。
+       必须放在 @media 外面——横屏手机 / 平板 / 折叠屏展开宽度都 > 700px，
+       若限定窄屏，键盘弹起时外壳不动，输入框和对话被键盘盖住。
+       桌面端 vv.height == innerHeight，fixed 全屏无副作用。 */
+#dsh-app-frame{
+  position:fixed!important;top:0!important;left:0!important;right:0!important;
+  height:var(--dsh-vvh,100%)!important;
+}
+/* 8. 审批卡片：composer takeover 会占据输入区。命令很长时把 body 撑高，
+       按钮被顶出可视区；用 stable 的 data-approval-key 定位，约束命令区高度
+       并让卡片可滚动，保证「允许/拒绝」始终够得着。 */
+[data-approval-key] [class*="_body"]{
+  max-height:min(42vh,360px)!important;overflow-y:auto!important;
+}
+[data-approval-key] [class*="_command"]{
+  max-height:8em!important;overflow:auto!important;white-space:pre-wrap!important;
+  font-size:12px!important;line-height:18px!important;
+}
+[data-approval-key] [class*="_actionRow"]{
+  position:sticky!important;bottom:0!important;
+  background:var(--dsw-specific-input-major, #fff)!important;z-index:2!important;
 }
 </style><script>
 window.__DSH_BOOT__ = ${serialized};
@@ -1543,6 +1558,28 @@ window.__DSH_BOOT__ = ${serialized};
   document.addEventListener('focusout', () => setTimeout(schedule, 160));
   window.addEventListener('orientationchange', () => setTimeout(schedule, 200));
   schedule();
+})();
+(() => {
+  /* 审批卡片出现时自动滚进可视区：审批是 composer takeover，命令一长，
+     卡片下半部与「允许/拒绝」按钮容易被顶出屏幕，用户在移动端看不到也点不到。
+     用 stable 的 data-approval-key 捕捉新出现的审批，滚动到它的底部（按钮侧）。 */
+  const seen = new WeakSet();
+  const reveal = (card) => {
+    if (!card || seen.has(card)) return;
+    seen.add(card);
+    requestAnimationFrame(() => {
+      try { card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }
+      catch { card.scrollIntoView({ block: 'nearest' }); }
+    });
+  };
+  const scan = () => document.querySelectorAll('[data-approval-key]').forEach(reveal);
+  const observer = new MutationObserver(scan);
+  const start = () => {
+    observer.observe(document.body, { childList: true, subtree: true });
+    scan();
+  };
+  if (document.body) start();
+  else document.addEventListener('DOMContentLoaded', start);
 })();
 </script>
 ${makersActionsHead}

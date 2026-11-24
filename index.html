@@ -115,14 +115,6 @@
   [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-powered,
   [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-actions{display:none!important}
 
-  /* 4. 虚拟键盘：不再猜"键盘是否弹出"——安卓 Chrome 上 innerHeight / visualViewport
-        / offsetTop 的组合跟预期不一致，差值判定会落空。改为让外壳高度始终等于
-        visualViewport 的真实可视高度：键盘弹起时它自己变小，输入框自然上移；
-        键盘收起时自己恢复。fixed 定位避免 iOS 把整页顶上去。 */
-  #dsh-app-frame{
-    position:fixed!important;top:0!important;left:0!important;right:0!important;
-    height:var(--dsh-vvh,100%)!important;
-  }
   #dsh-makers-chrome{top:0!important}
 
   /* 5. 设置面板：官方用 flex row（左导航188px + 右内容154px），窄屏下右栏被
@@ -156,6 +148,29 @@
     border-radius:12px!important;box-shadow:0 12px 36px rgba(0,0,0,.18)!important;
   }
   [class*="_7KE1Ra_menu"] [role="menuitem"]{min-height:44px!important}
+}
+
+/* 7. 虚拟键盘跟随：外壳高度永远等于 visualViewport 实时高度。
+       必须放在 @media 外面——横屏手机 / 平板 / 折叠屏展开宽度都 > 700px，
+       若限定窄屏，键盘弹起时外壳不动，输入框和对话被键盘盖住。
+       桌面端 vv.height == innerHeight，fixed 全屏无副作用。 */
+#dsh-app-frame{
+  position:fixed!important;top:0!important;left:0!important;right:0!important;
+  height:var(--dsh-vvh,100%)!important;
+}
+/* 8. 审批卡片：composer takeover 会占据输入区。命令很长时把 body 撑高，
+       按钮被顶出可视区；用 stable 的 data-approval-key 定位，约束命令区高度
+       并让卡片可滚动，保证「允许/拒绝」始终够得着。 */
+[data-approval-key] [class*="_body"]{
+  max-height:min(42vh,360px)!important;overflow-y:auto!important;
+}
+[data-approval-key] [class*="_command"]{
+  max-height:8em!important;overflow:auto!important;white-space:pre-wrap!important;
+  font-size:12px!important;line-height:18px!important;
+}
+[data-approval-key] [class*="_actionRow"]{
+  position:sticky!important;bottom:0!important;
+  background:var(--dsw-specific-input-major, #fff)!important;z-index:2!important;
 }
 </style><script>
 window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-api-gateway","url":"/plugins/@deepseek-ai/dsh-api-gateway/client.js?rev=cdcb59a584ac","rev":"cdcb59a584ac","inject":["@deepseek-ai/dsh-typert-registry","@deepseek-ai/dsh-client-connection"],"immediately":true},{"id":"@deepseek-ai/dsh-api-remotes","url":"/plugins/@deepseek-ai/dsh-api-remotes/client.js?rev=bcfb9edbb825","rev":"bcfb9edbb825","inject":["@deepseek-ai/dsh-api-gateway"],"immediately":true},{"id":"@deepseek-ai/dsh-client-connection","url":"/plugins/@deepseek-ai/dsh-client-connection/client.js?rev=8e2ea96f6eba","rev":"8e2ea96f6eba","inject":[],"immediately":true},{"id":"@deepseek-ai/dsh-client-locale","url":"/plugins/@deepseek-ai/dsh-client-locale/client.js?rev=64388660f485","rev":"64388660f485","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-modules","url":"/plugins/@deepseek-ai/dsh-client-modules/client.js?rev=48908e43ade0","rev":"48908e43ade0","inject":[],"immediately":true},{"id":"@deepseek-ai/dsh-client-runtime","url":"/plugins/@deepseek-ai/dsh-client-runtime/client.js?rev=c3303226b83b","rev":"c3303226b83b","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-typert-registry","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-ui-agent-preset","url":"/plugins/@deepseek-ai/dsh-client-ui-agent-preset/client.js?rev=4c5aee76b189","rev":"4c5aee76b189","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-commands","url":"/plugins/@deepseek-ai/dsh-client-ui-commands/client.js?rev=1270e347eb54","rev":"1270e347eb54","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-input-trigger","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-conversation","url":"/plugins/@deepseek-ai/dsh-client-ui-conversation/client.js?rev=506160553732","rev":"506160553732","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-layout"]},{"id":"@deepseek-ai/dsh-client-ui-deliverables","url":"/plugins/@deepseek-ai/dsh-client-ui-deliverables/client.js?rev=cdc1db73caa3","rev":"cdc1db73caa3","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-directory-picker-native","url":"/plugins/@deepseek-ai/dsh-client-ui-directory-picker-native/client.js?rev=5eacf9770d3e","rev":"5eacf9770d3e","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-workspace"]},{"id":"@deepseek-ai/dsh-client-ui-goal","url":"/plugins/@deepseek-ai/dsh-client-ui-goal/client.js?rev=9fbdab0a940d","rev":"9fbdab0a940d","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-input-trigger","url":"/plugins/@deepseek-ai/dsh-client-ui-input-trigger/client.js?rev=6a8392daa51e","rev":"6a8392daa51e","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-jobs","url":"/plugins/@deepseek-ai/dsh-client-ui-jobs/client.js?rev=8a3ae4417b51","rev":"8a3ae4417b51","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-primitives"]},{"id":"@deepseek-ai/dsh-client-ui-layout","url":"/plugins/@deepseek-ai/dsh-client-ui-layout/client.js?rev=8807ee56f56f","rev":"8807ee56f56f","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-theme"]},{"id":"@deepseek-ai/dsh-client-ui-message-feedback","url":"/plugins/@deepseek-ai/dsh-client-ui-message-feedback/client.js?rev=b71af11b9629","rev":"b71af11b9629","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-model-selection","url":"/plugins/@deepseek-ai/dsh-client-ui-model-selection/client.js?rev=1735eec16556","rev":"1735eec16556","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-permission-presets","url":"/plugins/@deepseek-ai/dsh-client-ui-permission-presets/client.js?rev=29cf8f5ab25f","rev":"29cf8f5ab25f","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-settings"]},{"id":"@deepseek-ai/dsh-client-ui-plan","url":"/plugins/@deepseek-ai/dsh-client-ui-plan/client.js?rev=814d7c319382","rev":"814d7c319382","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-settings","url":"/plugins/@deepseek-ai/dsh-client-ui-settings/client.js?rev=0995b95e08aa","rev":"0995b95e08aa","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-settings-general","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-general/client.js?rev=ffd5b564493b","rev":"ffd5b564493b","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-sidebar"]},{"id":"@deepseek-ai/dsh-client-ui-settings-models","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-models/client.js?rev=ebb781218b25","rev":"ebb781218b25","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-settings-plugin-inventory","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-plugin-inventory/client.js?rev=e5e5db1fdbb0","rev":"e5e5db1fdbb0","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-settings-plugins","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-plugins/client.js?rev=b8886bcccc1a","rev":"b8886bcccc1a","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-sidebar","url":"/plugins/@deepseek-ai/dsh-client-ui-sidebar/client.js?rev=b8f03724988d","rev":"b8f03724988d","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-layout","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-skill","url":"/plugins/@deepseek-ai/dsh-client-ui-skill/client.js?rev=ae2c4c8bb023","rev":"ae2c4c8bb023","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-tool","@deepseek-ai/dsh-client-ui-input-trigger","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-subagent","url":"/plugins/@deepseek-ai/dsh-client-ui-subagent/client.js?rev=4f840be262cb","rev":"4f840be262cb","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-primitives","@deepseek-ai/dsh-client-ui-input-trigger"]},{"id":"@deepseek-ai/dsh-client-ui-theme","url":"/plugins/@deepseek-ai/dsh-client-ui-theme/client.js?rev=240449265bbc","rev":"240449265bbc","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-ui-tool","url":"/plugins/@deepseek-ai/dsh-client-ui-tool/client.js?rev=854069ecfd30","rev":"854069ecfd30","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-trajectory","url":"/plugins/@deepseek-ai/dsh-client-ui-trajectory/client.js?rev=f46b23483530","rev":"f46b23483530","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-user-questions","url":"/plugins/@deepseek-ai/dsh-client-ui-user-questions/client.js?rev=d497c77f1a0e","rev":"d497c77f1a0e","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-workflow-run","url":"/plugins/@deepseek-ai/dsh-client-ui-workflow-run/client.js?rev=c8efd1f79632","rev":"c8efd1f79632","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-workspace","url":"/plugins/@deepseek-ai/dsh-client-ui-workspace/client.js?rev=d647145f6243","rev":"d647145f6243","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-sidebar"]},{"id":"@deepseek-ai/dsh-session-log-export","url":"/plugins/@deepseek-ai/dsh-session-log-export/client.js?rev=7c27787733da","rev":"7c27787733da","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-typert-registry","url":"/plugins/@deepseek-ai/dsh-typert-registry/client.js?rev=e316e02b09bd","rev":"e316e02b09bd","inject":[],"immediately":true}]};
@@ -327,6 +342,28 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
   document.addEventListener('focusout', () => setTimeout(schedule, 160));
   window.addEventListener('orientationchange', () => setTimeout(schedule, 200));
   schedule();
+})();
+(() => {
+  /* 审批卡片出现时自动滚进可视区：审批是 composer takeover，命令一长，
+     卡片下半部与「允许/拒绝」按钮容易被顶出屏幕，用户在移动端看不到也点不到。
+     用 stable 的 data-approval-key 捕捉新出现的审批，滚动到它的底部（按钮侧）。 */
+  const seen = new WeakSet();
+  const reveal = (card) => {
+    if (!card || seen.has(card)) return;
+    seen.add(card);
+    requestAnimationFrame(() => {
+      try { card.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' }); }
+      catch { card.scrollIntoView({ block: 'nearest' }); }
+    });
+  };
+  const scan = () => document.querySelectorAll('[data-approval-key]').forEach(reveal);
+  const observer = new MutationObserver(scan);
+  const start = () => {
+    observer.observe(document.body, { childList: true, subtree: true });
+    scan();
+  };
+  if (document.body) start();
+  else document.addEventListener('DOMContentLoaded', start);
 })();
 </script>
 <!-- dsh-makers-actions -->

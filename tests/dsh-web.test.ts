@@ -48,6 +48,25 @@ test('mobile drawer, settings, and model picker are adapted for narrow screens',
   assert.match(html, /\[class\*="_7KE1Ra_menu"\]/)
 })
 
+test('keyboard fit and approval cards work on landscape tablets too', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8')
+  // 外壳跟随 visualViewport 必须全局生效，不能锁在 max-width:700px（横屏/平板会失效）
+  const frameRule = html.match(/#dsh-app-frame\{[^}]*\}/)
+  assert.ok(frameRule, '全局外壳 fixed 规则存在')
+  assert.match(frameRule![0], /position:fixed!important/)
+  assert.match(frameRule![0], /height:var\(--dsh-vvh,100%\)!important/)
+  // 该规则必须出现在 @media (max-width:700px) 块之外
+  const mediaEnd = html.indexOf('  [class*="_7KE1Ra_menu"] [role="menuitem"]{min-height:44px!important}')
+  const framePos = html.indexOf('#dsh-app-frame{')
+  assert.ok(framePos > mediaEnd, '外壳规则位于窄屏媒体查询之后，横屏也生效')
+  // 审批卡片：约束命令区高度 + 按钮 sticky + 出现时自动滚进可视区
+  assert.match(html, /\[data-approval-key\] \[class\*="_body"\]/)
+  assert.match(html, /\[data-approval-key\] \[class\*="_actionRow"\]/)
+  assert.match(html, /position:sticky!important;bottom:0!important/)
+  assert.match(html, /querySelectorAll\(['"]\[data-approval-key\]['"]\)/)
+  assert.match(html, /scrollIntoView/)
+})
+
 test('built-in agent presets are locked in the prepared Web UI', async () => {
   const source = await readFile(
     new URL('../public/plugins/@deepseek-ai/dsh-client-ui-agent-preset/client.js', import.meta.url),

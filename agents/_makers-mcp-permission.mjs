@@ -61,9 +61,10 @@ export function makersToolGate(mode, tool) {
 
 export function makersAskReason(mode, tool) {
   if (tool === 'dsh_config_write') {
-    return `The ${tool} tool will rewrite your saved rules / MCP servers / skills and survives restarts. Allow this one call?`
+    return `⚙️ 正在修改已保存的全局规则 / MCP / 技能，重启后依然生效。这是长期配置变更，仅本次授权。\nThe ${tool} tool will rewrite your saved rules / MCP servers / skills and survives restarts. Allow this one call?`
   }
-  return `The ${tool} tool needs ${makersRequiredModeLabel(tool)} on EdgeOne Makers. Current permission is ${mode}. Allow this one call?`
+  const need = makersRequiredModeLabel(tool)
+  return `🔒 EdgeOne 云端沙箱请求执行「${tool}」：它需要在 ${need}（当前 ${mode}）下运行${tool === 'workspace_run_command' ? '命令' : tool === 'publish_preview' ? '并发布预览' : ''}，仅影响云端隔离沙箱，不会碰你的本机。仅本次允许？想少弹请到 设置→权限 切到 Full access。\nThe ${tool} tool needs ${need} on EdgeOne Makers. Current permission is ${mode}. Allow this one call?`
 }
 
 export function makersRawToolName(publicName) {

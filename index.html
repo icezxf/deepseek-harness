@@ -52,12 +52,24 @@
     flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;height:40px!important;margin-left:auto!important;
   }
 
-  /* 2b. 展开态：data-sidebar-collapsed 属性消失，抽屉浮层覆盖内容，右侧不再被挤压变形 */
+  /* 2b. 展开态：WorkBuddy 式抽屉——从左侧滑出，带半透明遮罩，点遮罩收起。
+         data-sidebar-collapsed 属性消失即为展开。宽度克制在 80vw/300px，
+         圆角 + 阴影营造浮层感；遮罩由 JS 注入 #dsh-drawer-scrim。 */
   [class*="_frame"]:not([data-sidebar-collapsed]){grid-template-columns:minmax(0,1fr)!important}
   [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"]{
-    position:absolute!important;left:0!important;top:0!important;z-index:60!important;
-    width:min(300px,84vw)!important;height:100%!important;box-shadow:8px 0 28px rgba(0,0,0,.12)!important;
+    position:fixed!important;left:0!important;top:0!important;bottom:0!important;z-index:62!important;
+    width:min(300px,80vw)!important;height:100dvh!important;
+    border-radius:0 16px 16px 0!important;overflow:hidden!important;
+    box-shadow:10px 0 40px rgba(0,0,0,.22)!important;
+    animation:dshDrawerIn .2s ease-out!important;
   }
+  @keyframes dshDrawerIn{from{transform:translateX(-12%);opacity:.6}to{transform:translateX(0);opacity:1}}
+  #dsh-drawer-scrim{
+    position:fixed!important;inset:0!important;z-index:61!important;
+    background:rgba(15,18,26,.42)!important;opacity:0;visibility:hidden;
+    transition:opacity .2s ease!important;
+  }
+  body[data-dsh-drawer="open"] #dsh-drawer-scrim{opacity:1!important;visibility:visible!important}
   [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_centerCol"]{grid-column:1!important;width:100%!important}
 
   /* 3. 右上角的 EdgeOne Makers 快捷入口（了解更多 / GitHub 源码 / 模版部署）
@@ -112,6 +124,38 @@
     height:var(--dsh-vvh,100%)!important;
   }
   #dsh-makers-chrome{top:0!important}
+
+  /* 5. 设置面板：官方用 flex row（左导航188px + 右内容154px），窄屏下右栏被
+        压成竖条、文字一字一行。改成单列：导航横排成 tab，内容占满整宽。 */
+  [class*="VOzbGW_panel"]{flex-direction:column!important}
+  [class*="VOzbGW_panel"] > [class*="VOzbGW_nav"]{
+    flex:0 0 auto!important;width:100%!important;height:auto!important;
+    box-sizing:border-box!important;padding:8px 14px 0!important;
+    border-right:none!important;border-bottom:1px solid rgba(0,0,0,.07)!important;
+  }
+  [class*="VOzbGW_navTitle"]{padding:0 2px 8px!important}
+  [class*="VOzbGW_navList"]{
+    flex-direction:row!important;gap:6px!important;width:100%!important;
+    overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;
+    padding-bottom:8px!important;
+  }
+  [class*="VOzbGW_navCell"]{
+    flex:0 0 auto!important;min-width:0!important;width:auto!important;
+    padding:0 14px!important;white-space:nowrap!important;
+  }
+  [class*="VOzbGW_navCell"] [class*="VOzbGW_navLabel"]{font-size:14px!important}
+  [class*="VOzbGW_panel"] > [class*="VOzbGW_content"]{
+    flex:1 1 auto!important;width:100%!important;min-width:0!important;
+  }
+  [class*="VOzbGW_content"] [class*="VOzbGW_options"]>div{width:100%!important;box-sizing:border-box!important}
+  [class*="VOzbGW_content"] [class*="_section"]{max-width:100%!important}
+
+  /* 6. 模型/推理等级弹出菜单：约束在视口内、避免贴左边缘 */
+  [class*="_7KE1Ra_menu"]{
+    max-width:calc(100vw - 32px)!important;box-sizing:border-box!important;
+    border-radius:12px!important;box-shadow:0 12px 36px rgba(0,0,0,.18)!important;
+  }
+  [class*="_7KE1Ra_menu"] [role="menuitem"]{min-height:44px!important}
 }
 </style><script>
 window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-api-gateway","url":"/plugins/@deepseek-ai/dsh-api-gateway/client.js?rev=cdcb59a584ac","rev":"cdcb59a584ac","inject":["@deepseek-ai/dsh-typert-registry","@deepseek-ai/dsh-client-connection"],"immediately":true},{"id":"@deepseek-ai/dsh-api-remotes","url":"/plugins/@deepseek-ai/dsh-api-remotes/client.js?rev=bcfb9edbb825","rev":"bcfb9edbb825","inject":["@deepseek-ai/dsh-api-gateway"],"immediately":true},{"id":"@deepseek-ai/dsh-client-connection","url":"/plugins/@deepseek-ai/dsh-client-connection/client.js?rev=8e2ea96f6eba","rev":"8e2ea96f6eba","inject":[],"immediately":true},{"id":"@deepseek-ai/dsh-client-locale","url":"/plugins/@deepseek-ai/dsh-client-locale/client.js?rev=64388660f485","rev":"64388660f485","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-modules","url":"/plugins/@deepseek-ai/dsh-client-modules/client.js?rev=48908e43ade0","rev":"48908e43ade0","inject":[],"immediately":true},{"id":"@deepseek-ai/dsh-client-runtime","url":"/plugins/@deepseek-ai/dsh-client-runtime/client.js?rev=c3303226b83b","rev":"c3303226b83b","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-typert-registry","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-ui-agent-preset","url":"/plugins/@deepseek-ai/dsh-client-ui-agent-preset/client.js?rev=4c5aee76b189","rev":"4c5aee76b189","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-commands","url":"/plugins/@deepseek-ai/dsh-client-ui-commands/client.js?rev=1270e347eb54","rev":"1270e347eb54","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-input-trigger","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-conversation","url":"/plugins/@deepseek-ai/dsh-client-ui-conversation/client.js?rev=506160553732","rev":"506160553732","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-layout"]},{"id":"@deepseek-ai/dsh-client-ui-deliverables","url":"/plugins/@deepseek-ai/dsh-client-ui-deliverables/client.js?rev=cdc1db73caa3","rev":"cdc1db73caa3","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-directory-picker-native","url":"/plugins/@deepseek-ai/dsh-client-ui-directory-picker-native/client.js?rev=5eacf9770d3e","rev":"5eacf9770d3e","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-workspace"]},{"id":"@deepseek-ai/dsh-client-ui-goal","url":"/plugins/@deepseek-ai/dsh-client-ui-goal/client.js?rev=9fbdab0a940d","rev":"9fbdab0a940d","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-input-trigger","url":"/plugins/@deepseek-ai/dsh-client-ui-input-trigger/client.js?rev=6a8392daa51e","rev":"6a8392daa51e","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-jobs","url":"/plugins/@deepseek-ai/dsh-client-ui-jobs/client.js?rev=8a3ae4417b51","rev":"8a3ae4417b51","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-primitives"]},{"id":"@deepseek-ai/dsh-client-ui-layout","url":"/plugins/@deepseek-ai/dsh-client-ui-layout/client.js?rev=8807ee56f56f","rev":"8807ee56f56f","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-theme"]},{"id":"@deepseek-ai/dsh-client-ui-message-feedback","url":"/plugins/@deepseek-ai/dsh-client-ui-message-feedback/client.js?rev=b71af11b9629","rev":"b71af11b9629","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-model-selection","url":"/plugins/@deepseek-ai/dsh-client-ui-model-selection/client.js?rev=1735eec16556","rev":"1735eec16556","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-permission-presets","url":"/plugins/@deepseek-ai/dsh-client-ui-permission-presets/client.js?rev=29cf8f5ab25f","rev":"29cf8f5ab25f","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-settings"]},{"id":"@deepseek-ai/dsh-client-ui-plan","url":"/plugins/@deepseek-ai/dsh-client-ui-plan/client.js?rev=814d7c319382","rev":"814d7c319382","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-settings","url":"/plugins/@deepseek-ai/dsh-client-ui-settings/client.js?rev=0995b95e08aa","rev":"0995b95e08aa","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-settings-general","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-general/client.js?rev=ffd5b564493b","rev":"ffd5b564493b","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-ui-sidebar"]},{"id":"@deepseek-ai/dsh-client-ui-settings-models","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-models/client.js?rev=ebb781218b25","rev":"ebb781218b25","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-settings-plugin-inventory","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-plugin-inventory/client.js?rev=e5e5db1fdbb0","rev":"e5e5db1fdbb0","inject":["@deepseek-ai/dsh-api-remotes","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-settings-plugins","url":"/plugins/@deepseek-ai/dsh-client-ui-settings-plugins/client.js?rev=b8886bcccc1a","rev":"b8886bcccc1a","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-sidebar","url":"/plugins/@deepseek-ai/dsh-client-ui-sidebar/client.js?rev=b8f03724988d","rev":"b8f03724988d","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-layout","@deepseek-ai/dsh-client-locale"]},{"id":"@deepseek-ai/dsh-client-ui-skill","url":"/plugins/@deepseek-ai/dsh-client-ui-skill/client.js?rev=ae2c4c8bb023","rev":"ae2c4c8bb023","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-tool","@deepseek-ai/dsh-client-ui-input-trigger","@deepseek-ai/dsh-api-remotes"]},{"id":"@deepseek-ai/dsh-client-ui-subagent","url":"/plugins/@deepseek-ai/dsh-client-ui-subagent/client.js?rev=4f840be262cb","rev":"4f840be262cb","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-primitives","@deepseek-ai/dsh-client-ui-input-trigger"]},{"id":"@deepseek-ai/dsh-client-ui-theme","url":"/plugins/@deepseek-ai/dsh-client-ui-theme/client.js?rev=240449265bbc","rev":"240449265bbc","inject":["@deepseek-ai/dsh-client-connection","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-settings","@deepseek-ai/dsh-api-remotes"],"immediately":true},{"id":"@deepseek-ai/dsh-client-ui-tool","url":"/plugins/@deepseek-ai/dsh-client-ui-tool/client.js?rev=854069ecfd30","rev":"854069ecfd30","inject":["@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-trajectory","url":"/plugins/@deepseek-ai/dsh-client-ui-trajectory/client.js?rev=f46b23483530","rev":"f46b23483530","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-user-questions","url":"/plugins/@deepseek-ai/dsh-client-ui-user-questions/client.js?rev=d497c77f1a0e","rev":"d497c77f1a0e","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-workflow-run","url":"/plugins/@deepseek-ai/dsh-client-ui-workflow-run/client.js?rev=c8efd1f79632","rev":"c8efd1f79632","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-client-ui-workspace","url":"/plugins/@deepseek-ai/dsh-client-ui-workspace/client.js?rev=d647145f6243","rev":"d647145f6243","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-conversation","@deepseek-ai/dsh-client-ui-sidebar"]},{"id":"@deepseek-ai/dsh-session-log-export","url":"/plugins/@deepseek-ai/dsh-session-log-export/client.js?rev=7c27787733da","rev":"7c27787733da","inject":["@deepseek-ai/dsh-client-locale","@deepseek-ai/dsh-client-runtime","@deepseek-ai/dsh-client-ui-commands","@deepseek-ai/dsh-client-ui-conversation"]},{"id":"@deepseek-ai/dsh-typert-registry","url":"/plugins/@deepseek-ai/dsh-typert-registry/client.js?rev=e316e02b09bd","rev":"e316e02b09bd","inject":[],"immediately":true}]};
@@ -148,6 +192,35 @@ window.__DSH_BOOT__ = {"rev":"eefa04507a5c","entries":[{"id":"@deepseek-ai/dsh-a
     if (input instanceof Request) return nativeFetch(new Request(input, { ...init, headers }));
     return nativeFetch(input, { ...init, headers });
   };
+})();
+(() => {
+  // WorkBuddy 式抽屉：注入遮罩，展开侧边栏时显示，点击遮罩收起。
+  // 官方展开态自带的 overlayLayer 是 pointer-events:none，点不到，只能自建。
+  if (!matchMedia('(max-width:700px)').matches) return;
+  const scrim = document.createElement('div');
+  scrim.id = 'dsh-drawer-scrim';
+  scrim.setAttribute('aria-hidden', 'true');
+  const close = () => {
+    document.body.removeAttribute('data-dsh-drawer');
+    const frame = document.querySelector('[class*="_frame"]');
+    const toggle = frame?.querySelector('[class*="_sidebarCol"] button[aria-label*="侧边栏"]');
+    if (toggle) toggle.click();
+  };
+  scrim.addEventListener('click', close);
+  const mount = () => {
+    if (!document.getElementById('dsh-drawer-scrim')) document.body.appendChild(scrim);
+    const frame = document.querySelector('[class*="_frame"]');
+    if (!frame) return;
+    const sync = () => {
+      const expanded = !frame.hasAttribute('data-sidebar-collapsed');
+      if (expanded) document.body.setAttribute('data-dsh-drawer', 'open');
+      else document.body.removeAttribute('data-dsh-drawer');
+    };
+    sync();
+    new MutationObserver(sync).observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] });
+  };
+  if (document.body) mount();
+  else document.addEventListener('DOMContentLoaded', mount);
 })();
 (() => {
   const id = 'dsh-makers-hover-tip';

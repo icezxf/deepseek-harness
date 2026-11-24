@@ -1268,12 +1268,24 @@ function makersBootstrap(manifest) {
     flex:0 0 auto!important;flex-direction:row!important;align-items:center!important;height:40px!important;margin-left:auto!important;
   }
 
-  /* 2b. 展开态：data-sidebar-collapsed 属性消失，抽屉浮层覆盖内容，右侧不再被挤压变形 */
+  /* 2b. 展开态：WorkBuddy 式抽屉——从左侧滑出，带半透明遮罩，点遮罩收起。
+         data-sidebar-collapsed 属性消失即为展开。宽度克制在 80vw/300px，
+         圆角 + 阴影营造浮层感；遮罩由 JS 注入 #dsh-drawer-scrim。 */
   [class*="_frame"]:not([data-sidebar-collapsed]){grid-template-columns:minmax(0,1fr)!important}
   [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_sidebarCol"]{
-    position:absolute!important;left:0!important;top:0!important;z-index:60!important;
-    width:min(300px,84vw)!important;height:100%!important;box-shadow:8px 0 28px rgba(0,0,0,.12)!important;
+    position:fixed!important;left:0!important;top:0!important;bottom:0!important;z-index:62!important;
+    width:min(300px,80vw)!important;height:100dvh!important;
+    border-radius:0 16px 16px 0!important;overflow:hidden!important;
+    box-shadow:10px 0 40px rgba(0,0,0,.22)!important;
+    animation:dshDrawerIn .2s ease-out!important;
   }
+  @keyframes dshDrawerIn{from{transform:translateX(-12%);opacity:.6}to{transform:translateX(0);opacity:1}}
+  #dsh-drawer-scrim{
+    position:fixed!important;inset:0!important;z-index:61!important;
+    background:rgba(15,18,26,.42)!important;opacity:0;visibility:hidden;
+    transition:opacity .2s ease!important;
+  }
+  body[data-dsh-drawer="open"] #dsh-drawer-scrim{opacity:1!important;visibility:visible!important}
   [class*="_frame"]:not([data-sidebar-collapsed]) > [class*="_centerCol"]{grid-column:1!important;width:100%!important}
 
   /* 3. 右上角的 EdgeOne Makers 快捷入口（了解更多 / GitHub 源码 / 模版部署）
@@ -1328,6 +1340,38 @@ function makersBootstrap(manifest) {
     height:var(--dsh-vvh,100%)!important;
   }
   #dsh-makers-chrome{top:0!important}
+
+  /* 5. 设置面板：官方用 flex row（左导航188px + 右内容154px），窄屏下右栏被
+        压成竖条、文字一字一行。改成单列：导航横排成 tab，内容占满整宽。 */
+  [class*="VOzbGW_panel"]{flex-direction:column!important}
+  [class*="VOzbGW_panel"] > [class*="VOzbGW_nav"]{
+    flex:0 0 auto!important;width:100%!important;height:auto!important;
+    box-sizing:border-box!important;padding:8px 14px 0!important;
+    border-right:none!important;border-bottom:1px solid rgba(0,0,0,.07)!important;
+  }
+  [class*="VOzbGW_navTitle"]{padding:0 2px 8px!important}
+  [class*="VOzbGW_navList"]{
+    flex-direction:row!important;gap:6px!important;width:100%!important;
+    overflow-x:auto!important;-webkit-overflow-scrolling:touch!important;
+    padding-bottom:8px!important;
+  }
+  [class*="VOzbGW_navCell"]{
+    flex:0 0 auto!important;min-width:0!important;width:auto!important;
+    padding:0 14px!important;white-space:nowrap!important;
+  }
+  [class*="VOzbGW_navCell"] [class*="VOzbGW_navLabel"]{font-size:14px!important}
+  [class*="VOzbGW_panel"] > [class*="VOzbGW_content"]{
+    flex:1 1 auto!important;width:100%!important;min-width:0!important;
+  }
+  [class*="VOzbGW_content"] [class*="VOzbGW_options"]>div{width:100%!important;box-sizing:border-box!important}
+  [class*="VOzbGW_content"] [class*="_section"]{max-width:100%!important}
+
+  /* 6. 模型/推理等级弹出菜单：约束在视口内、避免贴左边缘 */
+  [class*="_7KE1Ra_menu"]{
+    max-width:calc(100vw - 32px)!important;box-sizing:border-box!important;
+    border-radius:12px!important;box-shadow:0 12px 36px rgba(0,0,0,.18)!important;
+  }
+  [class*="_7KE1Ra_menu"] [role="menuitem"]{min-height:44px!important}
 }
 </style><script>
 window.__DSH_BOOT__ = ${serialized};
@@ -1364,6 +1408,35 @@ window.__DSH_BOOT__ = ${serialized};
     if (input instanceof Request) return nativeFetch(new Request(input, { ...init, headers }));
     return nativeFetch(input, { ...init, headers });
   };
+})();
+(() => {
+  // WorkBuddy 式抽屉：注入遮罩，展开侧边栏时显示，点击遮罩收起。
+  // 官方展开态自带的 overlayLayer 是 pointer-events:none，点不到，只能自建。
+  if (!matchMedia('(max-width:700px)').matches) return;
+  const scrim = document.createElement('div');
+  scrim.id = 'dsh-drawer-scrim';
+  scrim.setAttribute('aria-hidden', 'true');
+  const close = () => {
+    document.body.removeAttribute('data-dsh-drawer');
+    const frame = document.querySelector('[class*="_frame"]');
+    const toggle = frame?.querySelector('[class*="_sidebarCol"] button[aria-label*="侧边栏"]');
+    if (toggle) toggle.click();
+  };
+  scrim.addEventListener('click', close);
+  const mount = () => {
+    if (!document.getElementById('dsh-drawer-scrim')) document.body.appendChild(scrim);
+    const frame = document.querySelector('[class*="_frame"]');
+    if (!frame) return;
+    const sync = () => {
+      const expanded = !frame.hasAttribute('data-sidebar-collapsed');
+      if (expanded) document.body.setAttribute('data-dsh-drawer', 'open');
+      else document.body.removeAttribute('data-dsh-drawer');
+    };
+    sync();
+    new MutationObserver(sync).observe(frame, { attributes: true, attributeFilter: ['data-sidebar-collapsed'] });
+  };
+  if (document.body) mount();
+  else document.addEventListener('DOMContentLoaded', mount);
 })();
 (() => {
   const id = 'dsh-makers-hover-tip';

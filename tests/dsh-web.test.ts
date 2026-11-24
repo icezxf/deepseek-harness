@@ -34,6 +34,20 @@ test('all devices share one stable conversation id so chats sync across browsers
   assert.match(html, /makers-conversation-id/)
 })
 
+test('mobile drawer, settings, and model picker are adapted for narrow screens', async () => {
+  const html = await readFile(new URL('../index.html', import.meta.url), 'utf8')
+  // 侧边栏抽屉：遮罩 + 点遮罩收起 + 圆角浮层
+  assert.match(html, /#dsh-drawer-scrim/)
+  assert.match(html, /data-dsh-drawer/)
+  assert.match(html, /dshDrawerIn/)
+  assert.match(html, /attributeFilter: \['data-sidebar-collapsed'\]/)
+  // 设置面板由双栏改为单列 tab
+  assert.match(html, /\[class\*="VOzbGW_panel"\]\{flex-direction:column!important\}/)
+  assert.match(html, /\[class\*="VOzbGW_navList"\]/)
+  // 模型菜单尺寸约束
+  assert.match(html, /\[class\*="_7KE1Ra_menu"\]/)
+})
+
 test('built-in agent presets are locked in the prepared Web UI', async () => {
   const source = await readFile(
     new URL('../public/plugins/@deepseek-ai/dsh-client-ui-agent-preset/client.js', import.meta.url),

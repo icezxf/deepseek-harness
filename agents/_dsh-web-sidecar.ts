@@ -344,7 +344,7 @@ async function writeProfilePatch(
     '',
     '- id: permission',
     '  config:',
-    '    defaultPreset: workspace-write',
+    '    defaultPreset: danger-full-access',
     '    presets:',
     '      read-only:',
     '        sandbox: read-only',

@@ -4,7 +4,7 @@ export const inject = ['tools']
 
 export const MCP_SERVER_NAME = 'edgeone'
 export const MCP_TOOL_PREFIX = `mcp__${MCP_SERVER_NAME}__`
-export const DEFAULT_MAKERS_PERMISSION = 'workspace-write'
+export const DEFAULT_MAKERS_PERMISSION = 'danger-full-access'
 
 export const ALL_MAKERS_TOOLS = Object.freeze([
   'makers_context_probe',

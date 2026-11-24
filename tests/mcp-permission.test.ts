@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises'
 import test from 'node:test'
 import {
   ALL_MAKERS_TOOLS,
+  DEFAULT_MAKERS_PERMISSION,
   apply as applyMakersMcpPermission,
   makersAskReason,
   makersAutoAllowTools,
@@ -58,6 +59,14 @@ test('full access auto-allows commands and preview without asking', () => {
   assert.equal(makersToolGate('danger-full-access', 'publish_preview'), 'allow')
   assert.equal(makersToolGate('danger-full-access', 'sandbox_probe'), 'allow')
   assert.deepEqual([...makersAutoAllowTools('danger-full-access')], [...ALL_MAKERS_TOOLS])
+})
+
+test('new sessions default to full access so commands and preview never prompt', () => {
+  assert.equal(DEFAULT_MAKERS_PERMISSION, 'danger-full-access')
+  assert.equal(makersToolGate(DEFAULT_MAKERS_PERMISSION, 'workspace_run_command'), 'allow')
+  assert.equal(makersToolGate(DEFAULT_MAKERS_PERMISSION, 'publish_preview'), 'allow')
+  // 只有改写已保存的全局配置仍要单独确认，作为底线保留
+  assert.equal(makersToolGate(DEFAULT_MAKERS_PERMISSION, 'dsh_config_write'), 'ask')
 })
 
 test('ask copy tells the user which mode the call needs', () => {

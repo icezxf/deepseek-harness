@@ -5,6 +5,12 @@ import { join } from 'node:path'
 import test from 'node:test'
 import { restoreDshSettingsYaml, snapshotDshSettingsYaml } from '../agents/_dsh-web-sidecar.ts'
 
+test('fresh sessions default to full access so command and preview tools never prompt', async () => {
+  const source = await readFile(new URL('../agents/_dsh-web-sidecar.ts', import.meta.url), 'utf8')
+  assert.match(source, /defaultPreset: danger-full-access/)
+  assert.doesNotMatch(source, /defaultPreset: workspace-write/)
+})
+
 function missingConversation(action: string) {
   return Object.assign(new Error(`Conversation not found by ${action}.`), {
     code: 'MemoryNotFoundError',

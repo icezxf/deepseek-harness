@@ -1304,6 +1304,17 @@ function makersBootstrap(manifest) {
   .dsh-makers-action-label{display:none!important}
   /* 抽屉展开时隐藏，避免图标浮在抽屉右侧残留的内容区上 */
   [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-chrome{display:none!important}
+
+  /* 4. 虚拟键盘：iOS 的键盘只缩 visual viewport，不会缩 layout viewport，
+        应用外壳写死 100% 高，输入框就被压在键盘下面。这里按 visualViewport
+        算出的可用高度把整个应用框收到键盘上方（安卓 resizes-content 时
+        innerHeight 已缩，算出来是 0，不会重复收）。 */
+  html[data-dsh-kb="1"],html[data-dsh-kb="1"] body{overflow:hidden!important}
+  html[data-dsh-kb="1"] [class*="_frame"]{
+    position:fixed!important;top:var(--dsh-vv-top,0px)!important;left:0!important;right:0!important;
+    height:var(--dsh-kb-height,100%)!important;
+  }
+  html[data-dsh-kb="1"] #dsh-makers-chrome{top:var(--dsh-vv-top,0px)!important}
 }
 </style><script>
 window.__DSH_BOOT__ = ${serialized};
@@ -1375,6 +1386,53 @@ window.__DSH_BOOT__ = ${serialized};
   document.addEventListener('pointerdown', hide);
   window.addEventListener('scroll', hide, true);
 })();
+(() => {
+  /* 虚拟键盘跟随：按 visualViewport 与 layout viewport 的高度差判断键盘是否弹出，
+     把 html[data-dsh-kb] 打开并给出可用高度，CSS 负责把应用框收到键盘上方。 */
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const root = document.documentElement;
+  let scheduled = 0;
+  let lastViewHeight = -1;
+  const isTextEntry = (el) => !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable === true);
+  const sync = () => {
+    scheduled = 0;
+    const layoutHeight = window.innerHeight;
+    const viewHeight = Math.round(vv.height);
+    const viewTop = Math.round(vv.offsetTop);
+    const keyboard = layoutHeight - viewHeight - viewTop;
+    if (keyboard < 80) {
+      if (root.dataset.dshKb) {
+        delete root.dataset.dshKb;
+        root.style.removeProperty('--dsh-kb-height');
+        root.style.removeProperty('--dsh-vv-top');
+        lastViewHeight = -1;
+      }
+      return;
+    }
+    root.dataset.dshKb = '1';
+    root.style.setProperty('--dsh-kb-height', viewHeight + 'px');
+    root.style.setProperty('--dsh-vv-top', viewTop + 'px');
+    if (window.scrollY) window.scrollTo(0, 0);
+    if (viewHeight !== lastViewHeight) {
+      lastViewHeight = viewHeight;
+      const scroller = document.querySelector('[class*="_scrollBody"]');
+      if (scroller && isTextEntry(document.activeElement)) scroller.scrollTop = scroller.scrollHeight;
+    }
+  };
+  const schedule = () => {
+    if (!scheduled) scheduled = requestAnimationFrame(sync);
+  };
+  vv.addEventListener('resize', schedule);
+  vv.addEventListener('scroll', schedule);
+  document.addEventListener('focusin', (event) => {
+    if (!isTextEntry(event.target)) return;
+    schedule();
+    setTimeout(schedule, 280);
+  });
+  document.addEventListener('focusout', () => setTimeout(schedule, 160));
+  window.addEventListener('orientationchange', () => setTimeout(schedule, 200));
+})();
 </script>
 ${makersActionsHead}
 ${configPanelHtml}`
@@ -1394,7 +1452,17 @@ if (!shellHtml.includes(headWithCharset)) {
 // Keep charset first so the HTML5 encoding sniff (first 1024 bytes) sees UTF-8
 // before the overlay script's Chinese copy. Injecting before charset made first
 // paint mojibake until a reload remembered UTF-8.
-const html = shellHtml.replace(headWithCharset, `${headWithCharset}${makersBootstrap(graph)}`)
+// interactive-widget=resizes-content 让安卓 Chrome 在键盘弹起时直接缩 layout viewport，
+// 整个外壳跟着变矮；不支持的浏览器由下面的 visualViewport 脚本兜底。
+const viewportTag = /<meta name="viewport" content="[^"]*"\s*\/?>/
+if (!viewportTag.test(shellHtml)) {
+  throw new Error('Published DSH Web index.html no longer declares a viewport meta tag.')
+}
+const patchedShell = shellHtml.replace(
+  viewportTag,
+  '<meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content" />',
+)
+const html = patchedShell.replace(headWithCharset, `${headWithCharset}${makersBootstrap(graph)}`)
 await writeFile(join(root, 'index.html'), html)
 await writeFile(join(publicDir, 'index.html'), html)
 console.log(`Prepared DSH Web with ${String(entries.length)} client plugins.`)

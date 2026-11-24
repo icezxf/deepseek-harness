@@ -1424,12 +1424,14 @@ window.__DSH_BOOT__ = ${serialized};
   };
   scrim.addEventListener('click', close);
   const mount = () => {
-    if (!document.getElementById('dsh-drawer-scrim')) document.body.appendChild(scrim);
     // frame 由插件异步渲染，脚本执行时可能还不存在，也可能被整体替换。
     // 观察 body subtree 的属性/子节点变化，对 frame 延迟出现与替换都鲁棒。
     const sync = () => {
       const frame = document.querySelector('[class*="_frame"]');
       if (!frame) return;
+      // scrim 必须挂在 frame 内，与 sidebar 同一 stacking context；
+      // 挂在 body 下会被 frame 的层叠上下文挡住，导致抽屉本身也被染灰。
+      if (scrim.parentElement !== frame) frame.appendChild(scrim);
       const expanded = !frame.hasAttribute('data-sidebar-collapsed');
       if (expanded) document.body.setAttribute('data-dsh-drawer', 'open');
       else document.body.removeAttribute('data-dsh-drawer');

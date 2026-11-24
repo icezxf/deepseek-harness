@@ -1305,16 +1305,15 @@ function makersBootstrap(manifest) {
   /* 抽屉展开时隐藏，避免图标浮在抽屉右侧残留的内容区上 */
   [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-chrome{display:none!important}
 
-  /* 4. 虚拟键盘：iOS 的键盘只缩 visual viewport，不会缩 layout viewport，
-        应用外壳写死 100% 高，输入框就被压在键盘下面。这里按 visualViewport
-        算出的可用高度把整个应用框收到键盘上方（安卓 resizes-content 时
-        innerHeight 已缩，算出来是 0，不会重复收）。 */
-  html[data-dsh-kb="1"],html[data-dsh-kb="1"] body{overflow:hidden!important}
-  html[data-dsh-kb="1"] [class*="_frame"]{
-    position:fixed!important;top:var(--dsh-vv-top,0px)!important;left:0!important;right:0!important;
-    height:var(--dsh-kb-height,100%)!important;
+  /* 4. 虚拟键盘：不再猜"键盘是否弹出"——安卓 Chrome 上 innerHeight / visualViewport
+        / offsetTop 的组合跟预期不一致，差值判定会落空。改为让外壳高度始终等于
+        visualViewport 的真实可视高度：键盘弹起时它自己变小，输入框自然上移；
+        键盘收起时自己恢复。fixed 定位避免 iOS 把整页顶上去。 */
+  #dsh-app-frame{
+    position:fixed!important;top:0!important;left:0!important;right:0!important;
+    height:var(--dsh-vvh,100%)!important;
   }
-  html[data-dsh-kb="1"] #dsh-makers-chrome{top:var(--dsh-vv-top,0px)!important}
+  #dsh-makers-chrome{top:0!important}
 }
 </style><script>
 window.__DSH_BOOT__ = ${serialized};
@@ -1387,35 +1386,39 @@ window.__DSH_BOOT__ = ${serialized};
   window.addEventListener('scroll', hide, true);
 })();
 (() => {
-  /* 虚拟键盘跟随：按 visualViewport 与 layout viewport 的高度差判断键盘是否弹出，
-     把 html[data-dsh-kb] 打开并给出可用高度，CSS 负责把应用框收到键盘上方。 */
+  /* 虚拟键盘跟随：不再判断"键盘是否弹出"（安卓 Chrome 上 innerHeight /
+     visualViewport / offsetTop 的组合会让差值判定落空）。直接给主外壳打一个
+     稳定的 id，并让它的高度永远等于 visualViewport 的实时可视高度：
+     键盘弹起 → vv.height 缩小 → 外壳变矮 → 输入框整体上移；
+     键盘收起 → vv.height 恢复 → 外壳回到全屏。安卓/ iOS 同一套逻辑。 */
   const vv = window.visualViewport;
-  if (!vv) return;
   const root = document.documentElement;
-  let scheduled = 0;
-  let lastViewHeight = -1;
   const isTextEntry = (el) => !!el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT' || el.isContentEditable === true);
+  const markFrame = () => {
+    if (document.getElementById('dsh-app-frame')) return true;
+    for (const el of document.querySelectorAll('[class*="_frame"]')) {
+      if (el.querySelector('[class*="_centerCol"]')) {
+        el.id = 'dsh-app-frame';
+        return true;
+      }
+    }
+    return false;
+  };
+  markFrame();
+  document.addEventListener('DOMContentLoaded', markFrame);
+
+  if (!vv) return;
+  let scheduled = 0;
+  let lastHeight = -1;
   const sync = () => {
     scheduled = 0;
-    const layoutHeight = window.innerHeight;
-    const viewHeight = Math.round(vv.height);
+    markFrame();
+    const viewHeight = Math.max(240, Math.round(vv.height));
     const viewTop = Math.round(vv.offsetTop);
-    const keyboard = layoutHeight - viewHeight - viewTop;
-    if (keyboard < 80) {
-      if (root.dataset.dshKb) {
-        delete root.dataset.dshKb;
-        root.style.removeProperty('--dsh-kb-height');
-        root.style.removeProperty('--dsh-vv-top');
-        lastViewHeight = -1;
-      }
-      return;
-    }
-    root.dataset.dshKb = '1';
-    root.style.setProperty('--dsh-kb-height', viewHeight + 'px');
+    root.style.setProperty('--dsh-vvh', viewHeight + 'px');
     root.style.setProperty('--dsh-vv-top', viewTop + 'px');
-    if (window.scrollY) window.scrollTo(0, 0);
-    if (viewHeight !== lastViewHeight) {
-      lastViewHeight = viewHeight;
+    if (viewHeight !== lastHeight) {
+      lastHeight = viewHeight;
       const scroller = document.querySelector('[class*="_scrollBody"]');
       if (scroller && isTextEntry(document.activeElement)) scroller.scrollTop = scroller.scrollHeight;
     }
@@ -1432,6 +1435,7 @@ window.__DSH_BOOT__ = ${serialized};
   });
   document.addEventListener('focusout', () => setTimeout(schedule, 160));
   window.addEventListener('orientationchange', () => setTimeout(schedule, 200));
+  schedule();
 })();
 </script>
 ${makersActionsHead}

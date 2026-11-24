@@ -31,6 +31,8 @@
 #dsh-makers-config-panel .dsh-cfg-source{display:flex;align-items:center;gap:7px;margin:10px 0 0;padding:7px 10px;border-radius:8px;background:#f2f5ff;color:#3449b8;font-size:12px;line-height:1.5}
 #dsh-makers-config-panel .dsh-cfg-source[data-tone=session]{background:#fff8e8;color:#8a5a00}
 #dsh-makers-config-panel .dsh-cfg-source[hidden]{display:none}
+#dsh-makers-config-panel .dsh-cfg-scope{display:flex;align-items:center;gap:6px;margin:10px 0 0;color:#4b5563;font-size:12.5px;cursor:pointer;user-select:none}
+#dsh-makers-config-panel .dsh-cfg-scope input{width:auto;flex:none;margin:0;accent-color:#3b5cff}
 #dsh-makers-config-panel .dsh-cfg-reset{border:1px solid #d6dae1;background:#fff;color:#57606a}
 #dsh-makers-config-panel .dsh-cfg-reset:hover{background:#f6f7f9;color:#17181c}
 #dsh-makers-config-panel .dsh-cfg-reset[hidden]{display:none}
@@ -60,8 +62,9 @@
     + '<div class="dsh-cfg-overlay" data-cfg-close="1"></div>'
     + '<div class="dsh-cfg-card" role="dialog" aria-modal="true" aria-labelledby="dsh-cfg-title">'
     + '<header><h2 id="dsh-cfg-title">运行配置</h2>'
-    + '<p class="dsh-cfg-sub">默认继承全局配置；在下面改动并保存后，这个会话就独立了。</p>'
+    + '<p class="dsh-cfg-sub">改动默认只影响当前会话；勾选下面那项可写入全局。</p>'
     + '<p class="dsh-cfg-source" id="dsh-cfg-source" hidden></p>'
+    + '<label class="dsh-cfg-scope"><input type="checkbox" id="dsh-cfg-global" />保存到全局，所有新会话都继承</label>'
     + '<button type="button" class="dsh-cfg-x" data-cfg-close="1" aria-label="关闭">×</button></header>'
     + '<div class="dsh-cfg-body">'
     + '<section><h3>全局规则<small>写入 AGENTS.md，每次会话开始注入</small></h3>'
@@ -212,14 +215,15 @@
     refs.save.disabled = true;
     setStatus('保存中…');
     try {
+      const scope = refs.global.checked ? 'global' : 'session';
       const response = await fetch('/api/dshConfig', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ action: 'write', bundle }),
+        body: JSON.stringify({ action: 'write', bundle, scope }),
       });
       const data = await response.json();
       if (!data.ok) throw new Error(data.error || '保存失败');
-      setStatus('已保存，正在重启会话…', 'ok');
+      setStatus(scope === 'global' ? '已保存到全局，所有新会话生效，正在重启…' : '已保存，正在重启会话…', 'ok');
       setTimeout(() => location.reload(), 1200);
     } catch (error) {
       setStatus(error && error.message ? error.message : '保存失败', 'error');
@@ -271,6 +275,7 @@
       instructions: panel.querySelector('#dsh-cfg-instructions'),
       status: panel.querySelector('#dsh-cfg-status'),
       source: panel.querySelector('#dsh-cfg-source'),
+      global: panel.querySelector('#dsh-cfg-global'),
       save: panel.querySelector('#dsh-cfg-save'),
       reset: panel.querySelector('#dsh-cfg-reset'),
     };

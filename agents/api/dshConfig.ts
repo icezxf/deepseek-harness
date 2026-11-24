@@ -1,15 +1,15 @@
 /**
- * 运行配置接口：读写会话级的 MCP 服务器、技能与全局规则。
+ * 运行配置接口：读写 MCP 服务器、技能与全局规则。
  *
- * 配置存在 conversation metadata 里，写入后立刻停掉 sidecar；
- * 下一次 /api 请求会带着新配置重新拉起（页面刷新即可生效）。
+ * write 默认写当前会话；scope='global' 写全局容器，所有未接管的新会话都会继承。
+ * 写入后会立刻停掉 sidecar，下一次 /api 请求按新配置重新拉起（页面刷新即生效）。
  */
 import {
+  applyConfigBundle,
   normalizeConfigBundle,
   readGlobalConfigBundle,
   readResolvedConfig,
   resetConfigToGlobal,
-  saveConfigBundle,
 } from '../_dsh-config.ts'
 import { stopDshWebSidecar } from '../_dsh-web-sidecar.ts'
 import { denyUnauthenticated } from './_proxy.ts'
@@ -61,6 +61,7 @@ export async function onRequest(context: any): Promise<Response> {
   }
 
   if (action === 'write') {
+    const scope = body.scope === 'global' ? 'global' : 'session'
     let bundle
     try {
       bundle = normalizeConfigBundle(body.bundle)
@@ -68,7 +69,7 @@ export async function onRequest(context: any): Promise<Response> {
       return json({ ok: false, error: error instanceof Error ? error.message : String(error) }, 400)
     }
     try {
-      await saveConfigBundle(context, conversationId, bundle)
+      await applyConfigBundle(context, conversationId, bundle, scope)
     } catch (error) {
       return json({
         ok: false,
@@ -81,7 +82,7 @@ export async function onRequest(context: any): Promise<Response> {
     } catch (error) {
       console.warn('[dsh-web] config restart failed:', error)
     }
-    return json({ ok: true, bundle, source: 'session', restarted })
+    return json({ ok: true, bundle, source: scope === 'global' ? 'global' : 'session', scope, restarted })
   }
 
   return json({ ok: false, error: '未知操作' }, 400)

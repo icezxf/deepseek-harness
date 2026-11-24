@@ -1282,15 +1282,23 @@ function makersBootstrap(manifest) {
         这些节点有固定 id（#dsh-makers-chrome / -powered / -actions），
         不是哈希类名，官方前端升级也不会失效。 */
   #dsh-makers-chrome{
-    position:fixed!important;top:0!important;left:140px!important;right:48px!important;
+    position:fixed!important;top:0!important;left:0!important;right:0!important;
     width:auto!important;height:53px!important;margin:0!important;padding:0!important;
     align-items:center!important;justify-content:flex-end!important;gap:2px!important;
     z-index:11!important;pointer-events:none!important;background:transparent!important;
   }
   #dsh-makers-chrome > *{pointer-events:auto!important}
+  /* 关键：官方前端在「进入会话」后会把 #dsh-makers-powered / #dsh-makers-actions
+     从顶栏容器搬进会话头部 .wSkVaW_titleRow，和 Session log 并排。因此不能只
+     定位父容器（会话态它是空的），必须把两个子元素自身 fixed 到顶栏；用
+     right 定位，360/390 宽都能贴着设置齿轮左侧，不会被挤压或盖住齿轮。 */
   #dsh-makers-powered{
-    position:static!important;height:32px!important;padding:0!important;
+    position:fixed!important;top:11px!important;left:auto!important;right:147px!important;
+    height:32px!important;padding:0!important;margin:0!important;
     flex:0 0 auto!important;width:auto!important;max-width:none!important;overflow:visible!important;
+    z-index:11!important;
+    /* 会话态官方加 data-docked="true" 配 translate(-50%,-50%)，会把 fixed 元素拽偏 */
+    transform:none!important;
   }
   .dsh-makers-powered-label,.dsh-makers-powered-divider{display:none!important}
   .dsh-makers-powered-more{
@@ -1298,12 +1306,18 @@ function makersBootstrap(manifest) {
     flex:0 0 auto!important;white-space:nowrap!important;
   }
   .dsh-makers-powered-more-label{font-size:12px!important;line-height:1!important;white-space:nowrap!important}
-  #dsh-makers-actions{position:static!important;height:32px!important;flex:0 0 auto!important;gap:0!important}
+  #dsh-makers-actions{
+    position:fixed!important;top:11px!important;left:auto!important;right:48px!important;
+    height:32px!important;flex:0 0 auto!important;gap:0!important;margin:0!important;
+    z-index:11!important;
+  }
   #dsh-makers-actions a,#dsh-makers-actions button{width:31px!important;height:32px!important;padding:0!important;justify-content:center!important;flex:0 0 auto!important}
   #dsh-makers-actions svg{width:16px!important;height:16px!important}
   .dsh-makers-action-label{display:none!important}
-  /* 抽屉展开时隐藏，避免图标浮在抽屉右侧残留的内容区上 */
-  [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-chrome{display:none!important}
+  /* 抽屉展开时隐藏图标，避免浮在抽屉右侧残留的内容区上 */
+  [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-chrome,
+  [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-powered,
+  [class*="_frame"]:not([data-sidebar-collapsed]) #dsh-makers-actions{display:none!important}
 
   /* 4. 虚拟键盘：不再猜"键盘是否弹出"——安卓 Chrome 上 innerHeight / visualViewport
         / offsetTop 的组合跟预期不一致，差值判定会落空。改为让外壳高度始终等于
